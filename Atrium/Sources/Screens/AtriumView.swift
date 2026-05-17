@@ -35,37 +35,26 @@ struct AtriumView: View {
     }
 
     private var header: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { context in
-            let now = context.date
-            let euro = Locale(identifier: "en_GB")
+        VStack(spacing: 28) {
+            Text("tend each house in its own time")
+                .font(Garamond.italic(26))
+                .foregroundStyle(Color.ink)
+                .multilineTextAlignment(.center)
+                .lineSpacing(4)
+                .padding(.horizontal, 24)
 
-            VStack(spacing: 18) {
-                Text(now.formatted(.dateTime.weekday(.wide).locale(euro)).uppercased())
-                    .font(Mono.label(11))
-                    .tracking(3.5)
-                    .foregroundStyle(Color.inkFaint)
-
-                Text(now.formatted(.dateTime.hour().minute().locale(euro)))
-                    .font(Garamond.mediumItalic(72))
-                    .foregroundStyle(Color.ink)
-
-                Text(now.formatted(.dateTime.day().month(.wide).year().locale(euro)))
-                    .font(Garamond.italic(17))
-                    .foregroundStyle(Color.inkFaint)
-
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.rule.opacity(0), Color.rule, Color.rule.opacity(0)],
-                            startPoint: .top, endPoint: .bottom
-                        )
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.rule.opacity(0), Color.rule, Color.rule.opacity(0)],
+                        startPoint: .top, endPoint: .bottom
                     )
-                    .frame(width: 1, height: 40)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 88)
-            .padding(.bottom, 40)
+                )
+                .frame(width: 1, height: 40)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 88)
+        .padding(.bottom, 40)
     }
 
     private var footer: some View {
