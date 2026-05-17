@@ -11,7 +11,7 @@ struct TodoRow: View {
     @ObserveInjection var inject
 
     var body: some View {
-        HStack(alignment: .center, spacing: 2) {
+        HStack(alignment: .firstTextBaseline, spacing: 2) {
 
             TodoCheckbox(isDone: todo.isDone) {
                 withAnimation(.easeInOut(duration: 0.18)) {
@@ -24,11 +24,12 @@ struct TodoRow: View {
                     }
                 }
             }
+            .alignmentGuide(.firstTextBaseline) { d in d[VerticalAlignment.center] + 6 }
 
             if todo.starred && !todo.isDone {
                 Text("★")
                     .font(.system(size: 13))
-                    .foregroundStyle(Color.oxblood)
+                    .foregroundStyle(.white)
             }
 
             textBody
@@ -44,6 +45,7 @@ struct TodoRow: View {
                         todo.priorityValue = newValue
                     }
                 ))
+                .alignmentGuide(.firstTextBaseline) { d in d[VerticalAlignment.center] + 6 }
             }
         }
         .padding(.vertical, 12)
@@ -51,7 +53,6 @@ struct TodoRow: View {
         .padding(.trailing, 8)
         .background(Color.paperWarm, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .padding(.vertical, 4)
-        .padding(.horizontal, 8)
         .enableInjection()
     }
 
@@ -66,6 +67,15 @@ struct TodoRow: View {
                 .submitLabel(.done)
                 .task { focused = true }
                 .onSubmit { finishEditing() }
+                .onChange(of: todo.text) { _, newValue in
+                    // The Return key inserts a newline on multi-line TextFields.
+                    // Treat that as "press Done" → commit and exit edit mode.
+                    // (Mark-as-done is only set via the checkbox.)
+                    if newValue.contains("\n") {
+                        todo.text = newValue.replacingOccurrences(of: "\n", with: "")
+                        finishEditing()
+                    }
+                }
                 .onChange(of: focused) { _, isFocused in
                     if !isFocused { finishEditing() }
                 }

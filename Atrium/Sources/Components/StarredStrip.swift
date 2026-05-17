@@ -36,7 +36,7 @@ struct StarredStrip: View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text("★")
                 .font(.system(size: 12))
-                .foregroundStyle(Color.oxblood)
+                .foregroundStyle(.white)
             Text(todo.text)
                 .font(Garamond.regular(18))
                 .foregroundStyle(Color.ink)

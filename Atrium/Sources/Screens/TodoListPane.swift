@@ -61,20 +61,28 @@ struct TodoListPane: View {
                                         }
                                         Haptics.rigid()
                                     } label: {
-                                        Label(
-                                            todo.starred ? "Unstar" : "Star",
-                                            systemImage: todo.starred ? "star.slash.fill" : "star.fill"
-                                        )
+                                        ZStack {
+                                            Color.oxblood
+                                            Image(systemName: todo.starred ? "star.slash.fill" : "star.fill")
+                                                .foregroundStyle(.white)
+                                        }
+                                        .padding(.trailing, 8)
                                     }
-                                    .tint(Color.oxblood)
+                                    .tint(Color.paper)
                                 }
                                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
+                                    Button {
                                         withAnimation { ctx.delete(todo) }
                                         Haptics.warning()
                                     } label: {
-                                        Label("Delete", systemImage: "trash")
+                                        ZStack {
+                                            Color.red
+                                            Image(systemName: "trash")
+                                                .foregroundStyle(.white)
+                                        }
+                                        .padding(.leading, 8)
                                     }
+                                    .tint(Color.paper)
                                 }
                         }
                         .onMove { from, to in
@@ -112,12 +120,18 @@ struct TodoListPane: View {
                                 .listRowSeparator(.hidden)
                                 .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
+                                    Button {
                                         withAnimation { ctx.delete(todo) }
                                         Haptics.warning()
                                     } label: {
-                                        Label("Delete", systemImage: "trash")
+                                        ZStack {
+                                            Color.red
+                                            Image(systemName: "trash")
+                                                .foregroundStyle(.white)
+                                        }
+                                        .padding(.leading, 8)
                                     }
+                                    .tint(Color.paper)
                                 }
                         }
                     }
@@ -176,8 +190,8 @@ struct TodoListPane: View {
             PriorityChip(priority: $newPriority)
         }
         .padding(.vertical, 12)
-        .padding(.leading, 12)
-        .padding(.trailing, 16)
+        .padding(.leading, 4)
+        .padding(.trailing, 8)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Color.rule)
