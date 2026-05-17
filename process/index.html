@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Atrium — process</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper:        #14110d;
+    --paper-warm:   #1d1812;
+    --ink:          #e6d9bc;
+    --ink-soft:     #a89a7d;
+    --ink-faint:    #6e6451;
+    --rule:         #322a20;
+    --oxblood:      #c97468;
+    --oxblood-soft: #8a4039;
+    --serif:        "EB Garamond", "Cormorant Garamond", Georgia, serif;
+    --mono:         "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 19px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(230,217,188,0.04), transparent 50%),
+      radial-gradient(circle at 85% 80%, rgba(201,116,104,0.06), transparent 55%);
+    min-height: 100vh;
+  }
+  .page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 96px 32px 160px;
+  }
+
+  header.front {
+    text-align: center;
+    margin-bottom: 80px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 28px;
+  }
+  h1.title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 72px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    margin: 0 0 22px;
+  }
+  .subtitle {
+    font-style: italic;
+    font-size: 20px;
+    color: var(--ink-soft);
+    margin: 0 auto;
+    max-width: 480px;
+    line-height: 1.45;
+  }
+  .ornament {
+    margin: 48px auto 0;
+    width: 1px;
+    height: 48px;
+    background: linear-gradient(to bottom, transparent, var(--rule), transparent);
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .section-label::before {
+    content: "";
+    display: inline-block;
+    width: 24px;
+    height: 1px;
+    background: var(--oxblood-soft);
+  }
+
+  /* ---------- TOC entries ---------- */
+
+  ol.toc {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: entry;
+  }
+
+  ol.toc > li {
+    counter-increment: entry;
+    border-top: 1px solid var(--rule);
+    padding: 0;
+  }
+  ol.toc > li:last-child {
+    border-bottom: 1px solid var(--rule);
+  }
+
+  ol.toc > li > a {
+    display: grid;
+    grid-template-columns: 60px 1fr auto;
+    gap: 24px;
+    align-items: baseline;
+    padding: 28px 0;
+    text-decoration: none;
+    border: 0;
+    color: var(--ink);
+    transition: background 120ms ease;
+  }
+
+  ol.toc > li > a:hover {
+    background: rgba(201,116,104,0.06);
+  }
+
+  ol.toc .num {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    color: var(--oxblood);
+    padding-top: 4px;
+  }
+  ol.toc .num::before {
+    content: counter(entry, decimal-leading-zero);
+  }
+
+  ol.toc .body {
+    min-width: 0;
+  }
+
+  ol.toc .name {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 500;
+    line-height: 1.15;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  ol.toc .desc {
+    font-style: italic;
+    font-size: 16px;
+    color: var(--ink-soft);
+    line-height: 1.45;
+  }
+
+  ol.toc .meta {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    text-align: right;
+    padding-top: 8px;
+    white-space: nowrap;
+  }
+
+  ol.toc > li.placeholder > a {
+    cursor: default;
+    color: var(--ink-faint);
+  }
+  ol.toc > li.placeholder > a:hover { background: transparent; }
+  ol.toc > li.placeholder .name { color: var(--ink-faint); font-style: italic; }
+  ol.toc > li.placeholder .desc { color: var(--ink-faint); }
+
+  footer.colophon {
+    margin-top: 96px;
+    padding-top: 32px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    text-align: center;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  @media (max-width: 600px) {
+    h1.title { font-size: 56px; }
+    .page { padding: 64px 24px 120px; }
+    ol.toc > li > a {
+      grid-template-columns: 40px 1fr;
+      gap: 16px;
+    }
+    ol.toc .meta { display: none; }
+    ol.toc .name { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="front">
+    <div class="eyebrow">Atrium &middot; Process</div>
+    <h1 class="title">Process</h1>
+    <p class="subtitle">Single-use microsites that articulate design decisions. Legible thinking, not documentation.</p>
+    <div class="ornament"></div>
+  </header>
+
+  <div class="section-label">Table of contents</div>
+
+  <ol class="toc">
+
+    <li>
+      <a href="./00-proposal/">
+        <div class="num"></div>
+        <div class="body">
+          <div class="name">Proposal</div>
+          <div class="desc">A contemplative tool for allocating attention across twelve domains of life. Premise, the twelve houses, the two screens, settled decisions, building order.</div>
+        </div>
+        <div class="meta">Draft &middot; 2026&middot;05</div>
+      </a>
+    </li>
+
+    <li>
+      <a href="./01-architecture/">
+        <div class="num"></div>
+        <div class="body">
+          <div class="name">Architecture</div>
+          <div class="desc">The shape of the thing. Map of the app, six core user journeys, and the proposed technical stack &mdash; client, data, LLM, deploy.</div>
+        </div>
+        <div class="meta">Draft &middot; 2026&middot;05</div>
+      </a>
+    </li>
+
+    <li>
+      <a href="./02-philosophy/">
+        <div class="num"></div>
+        <div class="body">
+          <div class="name">On tending</div>
+          <div class="desc">Twelve houses, twelve clocks. The asymmetry of time, four shapes of action, five verbs of attention, and the deep reason for no dashboard.</div>
+        </div>
+        <div class="meta">Draft &middot; 2026&middot;05</div>
+      </a>
+    </li>
+
+    <li>
+      <a href="./03-construction/">
+        <div class="num"></div>
+        <div class="body">
+          <div class="name">On building</div>
+          <div class="desc">Pivot to iOS-first. SwiftUI component tree, four communication patterns, the chat/context system &mdash; with seven provocations on how the houses should remember &mdash; and a twelve-step build order to TestFlight.</div>
+        </div>
+        <div class="meta">Draft &middot; 2026&middot;05</div>
+      </a>
+    </li>
+
+    <li class="placeholder">
+      <a>
+        <div class="num"></div>
+        <div class="body">
+          <div class="name">&mdash;</div>
+          <div class="desc">Next microsite, when a decision needs externalizing.</div>
+        </div>
+        <div class="meta">&mdash;</div>
+      </a>
+    </li>
+
+  </ol>
+
+  <footer class="colophon">
+    <span>Atrium &mdash; Process</span>
+    <span>2026 &middot; 05</span>
+  </footer>
+
+</div>
+
+</body>
+</html>

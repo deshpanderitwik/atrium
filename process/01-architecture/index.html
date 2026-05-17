@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Atrium — architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper:        #14110d;
+    --paper-warm:   #1d1812;
+    --ink:          #e6d9bc;
+    --ink-soft:     #a89a7d;
+    --ink-faint:    #6e6451;
+    --rule:         #322a20;
+    --oxblood:      #c97468;
+    --oxblood-soft: #8a4039;
+    --serif:        "EB Garamond", "Cormorant Garamond", Georgia, serif;
+    --mono:         "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 19px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(230,217,188,0.04), transparent 50%),
+      radial-gradient(circle at 85% 80%, rgba(201,116,104,0.06), transparent 55%);
+    min-height: 100vh;
+  }
+
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 72px 32px 160px;
+  }
+
+  /* ---------- breadcrumb ---------- */
+  .breadcrumb {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 56px;
+  }
+  .breadcrumb a {
+    color: var(--ink-faint);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+  }
+  .breadcrumb a:hover {
+    color: var(--oxblood);
+    border-bottom-color: var(--oxblood-soft);
+  }
+
+  /* ---------- header ---------- */
+  header.front {
+    text-align: center;
+    margin-bottom: 96px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 28px;
+  }
+  h1.title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 80px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    margin: 0 0 22px;
+  }
+  .subtitle {
+    font-style: italic;
+    font-size: 22px;
+    color: var(--ink-soft);
+    margin: 0 auto;
+    max-width: 480px;
+    line-height: 1.45;
+  }
+  .ornament {
+    margin: 56px auto 0;
+    width: 1px;
+    height: 56px;
+    background: linear-gradient(to bottom, transparent, var(--rule), transparent);
+  }
+
+  /* ---------- sections ---------- */
+  section { margin-bottom: 96px; }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .section-label::before {
+    content: "";
+    display: inline-block;
+    width: 24px;
+    height: 1px;
+    background: var(--oxblood-soft);
+  }
+
+  h2 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 36px;
+    line-height: 1.18;
+    margin: 0 0 28px;
+  }
+  h3 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-style: italic;
+    font-size: 22px;
+    margin: 40px 0 12px;
+  }
+  p { margin: 0 0 18px; }
+  p.lede {
+    font-size: 21px;
+    color: var(--ink-soft);
+    font-style: italic;
+    margin-bottom: 32px;
+  }
+  em { font-style: italic; color: var(--ink); }
+  strong { font-weight: 600; }
+  a {
+    color: var(--oxblood);
+    text-decoration: none;
+    border-bottom: 1px solid var(--oxblood-soft);
+  }
+  ul { padding-left: 1.4em; margin: 0 0 18px; }
+  li { margin-bottom: 6px; }
+
+  code, .mono {
+    font-family: var(--mono);
+    font-size: 0.85em;
+    color: var(--ink-soft);
+  }
+
+  /* ---------- ASCII diagram block ---------- */
+  pre.diagram {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    background: var(--paper-warm);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 28px 24px;
+    margin: 28px 0;
+    overflow-x: auto;
+    box-shadow: 0 24px 60px -30px rgba(0,0,0,0.6);
+  }
+  pre.diagram .accent { color: var(--oxblood); }
+  pre.diagram .name { color: var(--ink); font-weight: 500; }
+  pre.diagram .dim { color: var(--ink-faint); }
+
+  pre.diagram .caption {
+    display: block;
+    color: var(--ink-faint);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-top: 12px;
+    text-align: center;
+  }
+
+  /* ---------- journeys ---------- */
+  .journey {
+    border-top: 1px solid var(--rule);
+    padding: 32px 0 8px;
+  }
+  .journey:last-child { border-bottom: 1px solid var(--rule); }
+  .journey .num {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--oxblood);
+    margin-bottom: 8px;
+  }
+  .journey .name {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 26px;
+    color: var(--ink);
+    margin-bottom: 6px;
+    letter-spacing: -0.005em;
+  }
+  .journey .gist {
+    font-style: italic;
+    color: var(--ink-soft);
+    margin-bottom: 18px;
+    line-height: 1.45;
+  }
+  .journey ol.flow {
+    list-style: none;
+    counter-reset: step;
+    padding: 0;
+    margin: 0 0 18px;
+  }
+  .journey ol.flow li {
+    counter-increment: step;
+    padding: 6px 0 6px 36px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .journey ol.flow li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+    width: 24px;
+  }
+  .journey ol.flow li .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+    margin-left: 6px;
+  }
+  .journey .note {
+    color: var(--ink-soft);
+    font-size: 16px;
+    padding: 4px 0 16px;
+    line-height: 1.5;
+  }
+
+  /* ---------- stack layers ---------- */
+  .stack {
+    margin: 28px 0;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px -30px rgba(0,0,0,0.6);
+  }
+  .layer {
+    padding: 22px 26px;
+    background: var(--paper-warm);
+    border-bottom: 1px solid var(--rule);
+  }
+  .layer:last-child { border-bottom: 0; }
+  .layer .tier {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+    margin-bottom: 6px;
+  }
+  .layer .what {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 8px;
+    letter-spacing: -0.005em;
+  }
+  .layer .stuff {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    line-height: 1.7;
+  }
+  .layer .why {
+    color: var(--ink-soft);
+    font-size: 15px;
+    line-height: 1.5;
+    margin-top: 10px;
+    font-style: italic;
+  }
+
+  /* ---------- tables / schema ---------- */
+  table.schema {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0 28px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  table.schema th, table.schema td {
+    text-align: left;
+    padding: 8px 14px 8px 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  table.schema th {
+    color: var(--oxblood);
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 10px;
+    padding-bottom: 12px;
+  }
+  table.schema td.k { color: var(--ink); }
+  table.schema td.t { color: var(--ink-soft); }
+  table.schema td.n { color: var(--ink-faint); font-family: var(--serif); font-size: 14px; font-style: italic; }
+
+  .entity-name {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 18px;
+    color: var(--oxblood);
+    margin: 28px 0 4px;
+    letter-spacing: 0.01em;
+  }
+
+  /* ---------- callout ---------- */
+  .callout {
+    border-left: 2px solid var(--oxblood-soft);
+    padding: 6px 0 6px 24px;
+    margin: 24px 0;
+    color: var(--ink-soft);
+  }
+  .callout .heading {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+    margin-bottom: 6px;
+  }
+
+  hr.rule {
+    border: 0;
+    height: 1px;
+    background: var(--rule);
+    margin: 88px 0;
+  }
+
+  footer.colophon {
+    margin-top: 96px;
+    padding-top: 32px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    text-align: center;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  @media (max-width: 600px) {
+    h1.title { font-size: 56px; }
+    h2 { font-size: 28px; }
+    .page { padding: 56px 22px 120px; }
+    pre.diagram { font-size: 10.5px; padding: 20px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="breadcrumb">
+    <a href="../">Process</a> &nbsp;/&nbsp; 01 &middot; Architecture
+  </div>
+
+  <header class="front">
+    <div class="eyebrow">Process &middot; 01 &middot; Architecture</div>
+    <h1 class="title">The shape</h1>
+    <p class="subtitle">Two screens, one panel, one weekly job. A small stack designed to disappear under the content.</p>
+    <div class="ornament"></div>
+  </header>
+
+  <!-- ============================================== -->
+  <!-- I — Map of the app                              -->
+  <!-- ============================================== -->
+  <section>
+    <div class="section-label">I &mdash; Map of the app</div>
+    <h2>Two screens, one panel</h2>
+
+    <p class="lede">The whole surface area is a list of doors, a room behind each door, and a side drawer that holds long memory. Everything else is a job that runs lazily in the background of a request.</p>
+
+    <p>The deliberate shallowness matters. Atrium has no settings page, no profile screen, no archive view, no analytics tab. There is no place to <em>get lost</em>. If you can&rsquo;t reach the thing you want in one tap from the atrium, it probably shouldn&rsquo;t exist in v1.</p>
+
+<pre class="diagram">
+                       <span class="accent">┌──────────────────┐</span>
+                       <span class="accent">│</span>   <span class="name">Atrium</span>         <span class="accent">│</span>   <span class="dim">home — the list of doors</span>
+                       <span class="accent">│</span>                  <span class="accent">│</span>
+                       <span class="accent">│</span>   Corpus     <span class="dim">3</span>  <span class="accent">│</span>
+                       <span class="accent">│</span>   Animus     <span class="dim">1</span>  <span class="accent">│</span>
+                       <span class="accent">│</span>   Tempus     <span class="dim">—</span>  <span class="accent">│</span>
+                       <span class="accent">│</span>   Domus      <span class="dim">5</span>  <span class="accent">│</span>
+                       <span class="accent">│</span>   . . .         <span class="accent">│</span>
+                       <span class="accent">└────────┬─────────┘</span>
+                                <span class="dim">│  tap a door</span>
+                                ▼
+        <span class="accent">┌────────────────────────────────────────┐</span>
+        <span class="accent">│</span>   ← atrium     <span class="name">Opus</span>     <span class="dim">⚙</span>            <span class="accent">│</span>   <span class="dim">house view</span>
+        <span class="accent">│</span>   <span class="dim">the problem suddenly has shape…</span>     <span class="accent">│</span>
+        <span class="accent">├────────────────────┬───────────────────┤</span>
+        <span class="accent">│</span>                    <span class="accent">│</span>                   <span class="accent">│</span>
+        <span class="accent">│</span>   <span class="name">List pane</span>        <span class="accent">│</span>   <span class="name">Chat pane</span>       <span class="accent">│</span>
+        <span class="accent">│</span>                    <span class="accent">│</span>                   <span class="accent">│</span>
+        <span class="accent">│</span>   ＋ add…          <span class="accent">│</span>   week-scoped     <span class="accent">│</span>
+        <span class="accent">│</span>   • open todo      <span class="accent">│</span>   conversation    <span class="accent">│</span>
+        <span class="accent">│</span>   • open todo      <span class="accent">│</span>   with LLM        <span class="accent">│</span>
+        <span class="accent">│</span>   ─────────────    <span class="accent">│</span>                   <span class="accent">│</span>
+        <span class="accent">│</span>   ✓ done           <span class="accent">│</span>   <span class="dim">┌─ ＋ propose ─┐</span> <span class="accent">│</span>
+        <span class="accent">│</span>   ✓ done           <span class="accent">│</span>   <span class="dim">│  Add / Edit  │</span> <span class="accent">│</span>
+        <span class="accent">│</span>   ▸ shelved (2)    <span class="accent">│</span>   <span class="dim">└──────────────┘</span> <span class="accent">│</span>
+        <span class="accent">│</span>                    <span class="accent">│</span>                   <span class="accent">│</span>
+        <span class="accent">└────────┬───────────┴────────┬──────────┘</span>
+                 <span class="dim">│ ⚙ gear</span>             <span class="dim">│ sunday 23:59</span>
+                 ▼                      ▼
+       <span class="accent">┌──────────────────┐</span>     <span class="accent">┌──────────────────┐</span>
+       <span class="accent">│</span>  <span class="name">meta_md panel</span>   <span class="accent">│</span>     <span class="accent">│</span>  <span class="name">Weekly job</span>      <span class="accent">│</span>
+       <span class="accent">│</span>                  <span class="accent">│</span>     <span class="accent">│</span>  <span class="dim">(lazy)</span>          <span class="accent">│</span>
+       <span class="accent">│</span>  long memory     <span class="accent">│</span>     <span class="accent">│</span>  lock + summarise<span class="accent">│</span>
+       <span class="accent">│</span>  survives        <span class="accent">│</span>     <span class="accent">│</span>  + roll over     <span class="accent">│</span>
+       <span class="accent">│</span>  rollover        <span class="accent">│</span>     <span class="accent">│</span>                  <span class="accent">│</span>
+       <span class="accent">└──────────────────┘</span>     <span class="accent">└──────────────────┘</span>
+
+<span class="caption">surface area of Atrium, v1</span>
+</pre>
+
+    <h3>Component inventory</h3>
+    <ul>
+      <li><strong>Atrium (home).</strong> A single vertical list of twelve doors. Each row: Latin name, italic definition, open-todo count.</li>
+      <li><strong>House view.</strong> Header strip (back link, name, definition, gear). Two panes on desktop, two tabs on mobile.</li>
+      <li><strong>List pane.</strong> Open todos sorted by priority, divider, recently-completed (faded), shelved disclosure.</li>
+      <li><strong>Chat pane.</strong> Week-scoped conversation. Summary card pinned at top after a rollover. Inline <code>propose_todo</code> cards live within message bubbles.</li>
+      <li><strong>meta_md panel.</strong> Slide-out drawer from the right. Markdown editor for long-lived per-house context.</li>
+      <li><strong>Weekly rollover job.</strong> Not a screen. A function that runs on first house-open after Sunday 23:59. Locks the prior week, generates a summary, opens a new week.</li>
+    </ul>
+
+    <div class="callout">
+      <div class="heading">Surface area discipline</div>
+      Two screens and one drawer is a constraint, not a starting point. Any new screen proposed in the future has to justify itself against the cost of breaking the &ldquo;list of doors, room behind each door&rdquo; metaphor.
+    </div>
+  </section>
+
+  <!-- ============================================== -->
+  <!-- II — Core user journeys                          -->
+  <!-- ============================================== -->
+  <section>
+    <div class="section-label">II &mdash; Core user journeys</div>
+    <h2>What people actually do</h2>
+
+    <p class="lede">Six flows cover the entire app. If a feature isn&rsquo;t in service of one of these, it&rsquo;s out of scope.</p>
+
+    <div class="journey">
+      <div class="num">A</div>
+      <div class="name">The daily entrance</div>
+      <div class="gist">Open the app. See the twelve names. Choose where to spend yourself today.</div>
+      <ol class="flow">
+        <li>Open Atrium. <span class="tag">GET /</span></li>
+        <li>Read the twelve doors. The open-todo counts give peripheral hint, no more.</li>
+        <li>Tap a row. <span class="tag">GET /h/[house_id]</span></li>
+        <li>Land in the house. Pick up where the conversation left off, or attend the list.</li>
+      </ol>
+      <div class="note">This is the most-trafficked path in the app. It must feel like opening a door, not loading a dashboard. Cold-load budget on the home screen: under 200ms perceived.</div>
+    </div>
+
+    <div class="journey">
+      <div class="num">B</div>
+      <div class="name">Tending the list</div>
+      <div class="gist">Manual capture and care of todos &mdash; the bread-and-butter loop.</div>
+      <ol class="flow">
+        <li>Inside a house, type at the top of the list. <span class="tag">＋ add…</span></li>
+        <li>Press enter. Todo created with <code>source: 'manual'</code>. Appears at top of open list.</li>
+        <li>Drag to reorder, updating <code>priority</code>.</li>
+        <li>Long-press any item for the menu: <em>done · shelve · unshelve · delete</em>.</li>
+        <li>Completed items fade and strike through; persist for 7 days under a divider.</li>
+        <li>Uncompleting returns the todo to the bottom of the open list.</li>
+      </ol>
+      <div class="note">Shelve is the default soft-delete. Delete requires a confirmation modal. Atrium remembers; it does not erase by accident.</div>
+    </div>
+
+    <div class="journey">
+      <div class="num">C</div>
+      <div class="name">The thinking-partner conversation</div>
+      <div class="gist">Talk through what&rsquo;s in this house. Let action-shaped items surface deliberately, never silently.</div>
+      <ol class="flow">
+        <li>Type into the chat pane. <span class="tag">POST /api/chat</span></li>
+        <li>Server constructs the prompt: house definition + open todos + <code>meta_md</code> + last week&rsquo;s summary + role instruction.</li>
+        <li>Stream the response into the pane. Tokens flow as the model writes.</li>
+        <li>If the model identifies an action-shaped item, it calls <code>propose_todo</code>. The tool call renders as an inline card: <em>Add / Edit / Skip</em>.</li>
+        <li>User confirms. New todo created with <code>source: 'chat'</code> and <code>chat_message_id</code> set to the message that proposed it. <span class="tag">POST /api/todo</span></li>
+        <li>The chat-origin marker on the todo can later scroll the conversation back to the proposing message.</li>
+      </ol>
+      <div class="note">No background extraction. The user always sees the proposal before it enters the list. The <em>Skip</em> action records the proposal as skipped, useful later for tuning the prompt.</div>
+    </div>
+
+    <div class="journey">
+      <div class="num">D</div>
+      <div class="name">Editing the long memory</div>
+      <div class="gist">Update what the partner knows about this house &mdash; the names, the projects, what enough means.</div>
+      <ol class="flow">
+        <li>Tap the gear in the house header.</li>
+        <li>A panel slides in from the right with a markdown editor for <code>meta_md</code>.</li>
+        <li>Edit freely. Save on close (or autosave on debounce).</li>
+        <li>Next chat turn includes the updated <code>meta_md</code> in the system prompt.</li>
+      </ol>
+      <div class="note">This is the field that makes the partner genuinely useful over months. It carries names, projects, hard-won shorthand &mdash; the things the user shouldn&rsquo;t have to re-explain every Monday.</div>
+    </div>
+
+    <div class="journey">
+      <div class="num">E</div>
+      <div class="name">The Sunday rollover</div>
+      <div class="gist">Weeks end at 23:59 Sunday local. Nothing fires at midnight. The rollover happens lazily, on next entry.</div>
+      <ol class="flow">
+        <li>User opens a house after Sunday 23:59. <span class="tag">GET /h/[house_id]</span></li>
+        <li>Server checks: is there an <code>active</code> week whose <code>end_date</code> has passed?</li>
+        <li>If yes, mark the week <code>closed</code>. Lock its messages.</li>
+        <li>Generate the summary in one LLM call: transcript + end-of-week list state &rarr; 200&ndash;400 word markdown. <span class="tag">opus-4-7</span></li>
+        <li>Save <code>summary_md</code> on the closed week. Mark <code>summarized</code>.</li>
+        <li>Create a new <code>Week</code> with the summary card pinned at the top.</li>
+        <li>If the closed week had zero messages, skip steps 4&ndash;5. New week begins blank.</li>
+      </ol>
+      <div class="note">Houses untouched for a full week generate no Week row at all. The data model stays sparse. Cost stays sane.</div>
+    </div>
+
+    <div class="journey">
+      <div class="num">F</div>
+      <div class="name">Following a chat-born todo back to its origin</div>
+      <div class="gist">Months later, you wonder why this todo is here. Atrium can answer.</div>
+      <ol class="flow">
+        <li>Tap the small chat-origin marker on a todo.</li>
+        <li>Conversation pane scrolls to <code>chat_message_id</code>, highlights the surrounding turn.</li>
+        <li>If the message was in a prior week, Atrium opens that week&rsquo;s locked thread.</li>
+      </ol>
+      <div class="note">A small affordance that pays for itself the first time you use it. Provenance is cheap to record and expensive to reconstruct after the fact.</div>
+    </div>
+  </section>
+
+  <!-- ============================================== -->
+  <!-- III — Technical infrastructure                  -->
+  <!-- ============================================== -->
+  <section>
+    <div class="section-label">III &mdash; Technical infrastructure</div>
+    <h2>A small stack, picked for longevity</h2>
+
+    <p class="lede">Atrium is a single-user tool. The stack should be boring, cheap to host indefinitely, and easy to leave alone for months between changes.</p>
+
+<pre class="diagram">
+   <span class="dim">─────────────────────────────────────────────────────</span>
+                       <span class="dim">CLIENT</span>
+   <span class="accent">┌───────────────────────────────────────────────────┐</span>
+   <span class="accent">│</span>  <span class="name">React + Next.js (App Router)</span>                     <span class="accent">│</span>
+   <span class="accent">│</span>  EB Garamond · JetBrains Mono · responsive panes  <span class="accent">│</span>
+   <span class="accent">│</span>  streaming chat (Vercel AI SDK or raw fetch)      <span class="accent">│</span>
+   <span class="accent">└───────────────────────────────────────────────────┘</span>
+                              <span class="dim">▲ HTTP/SSE</span>
+                              ▼
+   <span class="dim">─────────────────────────────────────────────────────</span>
+                     <span class="dim">SERVER (edge/node)</span>
+   <span class="accent">┌───────────────────────────────────────────────────┐</span>
+   <span class="accent">│</span>  <span class="name">Server actions + route handlers</span>                  <span class="accent">│</span>
+   <span class="accent">│</span>    /api/chat         streaming chat               <span class="accent">│</span>
+   <span class="accent">│</span>    /api/todo         CRUD                          <span class="accent">│</span>
+   <span class="accent">│</span>    /api/proposal     accept/edit/skip             <span class="accent">│</span>
+   <span class="accent">│</span>    /api/meta         meta_md update               <span class="accent">│</span>
+   <span class="accent">│</span>                                                   <span class="accent">│</span>
+   <span class="accent">│</span>  <span class="name">Prompt builder</span>      definition + open todos +    <span class="accent">│</span>
+   <span class="accent">│</span>                       meta_md + last summary +    <span class="accent">│</span>
+   <span class="accent">│</span>                       role instruction            <span class="accent">│</span>
+   <span class="accent">│</span>                                                   <span class="accent">│</span>
+   <span class="accent">│</span>  <span class="name">Week-boundary check</span> runs lazily at house entry   <span class="accent">│</span>
+   <span class="accent">└───────────────────────────────────────────────────┘</span>
+                  <span class="dim">▲                    ▲</span>
+                  ▼                    ▼
+   <span class="dim">────────────────────────  ────────────────────────────</span>
+         <span class="dim">LLM</span>                          <span class="dim">DATA</span>
+   <span class="accent">┌─────────────────────┐</span>   <span class="accent">┌──────────────────────┐</span>
+   <span class="accent">│</span> <span class="name">Anthropic API</span>       <span class="accent">│</span>   <span class="accent">│</span> <span class="name">Drizzle ORM</span>          <span class="accent">│</span>
+   <span class="accent">│</span> claude-sonnet-4-6   <span class="accent">│</span>   <span class="accent">│</span>   ↕                  <span class="accent">│</span>
+   <span class="accent">│</span> claude-opus-4-7     <span class="accent">│</span>   <span class="accent">│</span> <span class="name">SQLite (Turso)</span>       <span class="accent">│</span>
+   <span class="accent">│</span>   (summaries)       <span class="accent">│</span>   <span class="accent">│</span>   or local file      <span class="accent">│</span>
+   <span class="accent">│</span> tool use: propose_  <span class="accent">│</span>   <span class="accent">│</span>                      <span class="accent">│</span>
+   <span class="accent">│</span>   todo              <span class="accent">│</span>   <span class="accent">│</span> migrations versioned <span class="accent">│</span>
+   <span class="accent">└─────────────────────┘</span>   <span class="accent">└──────────────────────┘</span>
+
+<span class="caption">request path · top to bottom · LLM and DB are siblings</span>
+</pre>
+
+    <h3>The layers, picked</h3>
+
+    <div class="stack">
+
+      <div class="layer">
+        <div class="tier">Client</div>
+        <div class="what">Next.js · App Router</div>
+        <div class="stuff">react 18 &middot; server components &middot; tailwind or vanilla CSS &middot; vercel ai sdk for streaming &middot; EB Garamond via next/font</div>
+        <div class="why">A single deployment unit (UI + API) keeps the operational surface small. Server components let the home screen render in one round-trip with seeded data. SvelteKit would be equally fine; Next.js wins on AI SDK ergonomics.</div>
+      </div>
+
+      <div class="layer">
+        <div class="tier">Data</div>
+        <div class="what">Drizzle ORM over SQLite</div>
+        <div class="stuff">drizzle-orm &middot; libsql/turso for hosted &middot; or better-sqlite3 for local file &middot; migrations in /drizzle &middot; seed script for the twelve houses</div>
+        <div class="why">SQLite is the right size for one user with a few hundred todos and a couple of years of conversation. Turso (libSQL) gives you the same engine reachable from phone and laptop, with edge replicas, for a few dollars a month. Local-only mode is one env flag away if you ever want to leave hosting behind.</div>
+      </div>
+
+      <div class="layer">
+        <div class="tier">LLM</div>
+        <div class="what">Anthropic API · direct</div>
+        <div class="stuff">@anthropic-ai/sdk &middot; claude-sonnet-4-6 default &middot; claude-opus-4-7 for summary &middot; tool use for propose_todo &middot; prompt caching on the static system block</div>
+        <div class="why">No middleware (no LangChain). Direct SDK calls are simpler to reason about and cheaper to debug. The system prompt for each house is largely static within a week &mdash; prompt caching reclaims most of the per-turn token cost.</div>
+      </div>
+
+      <div class="layer">
+        <div class="tier">Auth</div>
+        <div class="what">Single shared secret</div>
+        <div class="stuff">middleware checks ATRIUM_SECRET cookie &middot; one-time set via magic link or env-var bootstrap</div>
+        <div class="why">v1 is single-user. A full auth stack is an order of magnitude more code than the app deserves. If a second user ever needs in, swap to Clerk or Lucia in a day.</div>
+      </div>
+
+      <div class="layer">
+        <div class="tier">Deploy</div>
+        <div class="what">Vercel + Turso</div>
+        <div class="stuff">git push to deploy &middot; environment vars: ANTHROPIC_API_KEY, TURSO_URL, TURSO_TOKEN, ATRIUM_SECRET &middot; preview deploys per branch</div>
+        <div class="why">Standard Vercel deploy + a Turso database. Total infra cost target: under $5/month before LLM usage. The contemplative tool should not have an operational footprint that demands attention.</div>
+      </div>
+
+    </div>
+
+    <h3>Data model, at a glance</h3>
+
+    <div class="entity-name">House</div>
+    <table class="schema">
+      <thead><tr><th style="width: 38%;">field</th><th style="width: 30%;">type</th><th>note</th></tr></thead>
+      <tbody>
+        <tr><td class="k">id</td><td class="t">string</td><td class="n">'corpus', 'animus', …</td></tr>
+        <tr><td class="k">name</td><td class="t">string</td><td class="n">Latin display name</td></tr>
+        <tr><td class="k">definition</td><td class="t">string</td><td class="n">verbatim in system prompt</td></tr>
+        <tr><td class="k">order</td><td class="t">int</td><td class="n">1..12, preserve self→world</td></tr>
+        <tr><td class="k">meta_md</td><td class="t">string</td><td class="n">long memory, user-edited</td></tr>
+      </tbody>
+    </table>
+
+    <div class="entity-name">Week</div>
+    <table class="schema">
+      <thead><tr><th style="width: 38%;">field</th><th style="width: 30%;">type</th><th>note</th></tr></thead>
+      <tbody>
+        <tr><td class="k">id</td><td class="t">string</td><td class="n">uuid</td></tr>
+        <tr><td class="k">house_id</td><td class="t">string</td><td class="n">→ House</td></tr>
+        <tr><td class="k">start_date</td><td class="t">date</td><td class="n">Monday 00:00 local</td></tr>
+        <tr><td class="k">end_date</td><td class="t">date</td><td class="n">Sunday 23:59 local</td></tr>
+        <tr><td class="k">status</td><td class="t">enum</td><td class="n">active · closed · summarized</td></tr>
+        <tr><td class="k">summary_md</td><td class="t">string?</td><td class="n">generated at rollover</td></tr>
+      </tbody>
+    </table>
+
+    <div class="entity-name">Message</div>
+    <table class="schema">
+      <thead><tr><th style="width: 38%;">field</th><th style="width: 30%;">type</th><th>note</th></tr></thead>
+      <tbody>
+        <tr><td class="k">id</td><td class="t">string</td><td></td></tr>
+        <tr><td class="k">week_id</td><td class="t">string</td><td class="n">→ Week</td></tr>
+        <tr><td class="k">role</td><td class="t">enum</td><td class="n">user · assistant</td></tr>
+        <tr><td class="k">content</td><td class="t">text</td><td class="n">may include tool-call blocks</td></tr>
+        <tr><td class="k">created_at</td><td class="t">timestamp</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <div class="entity-name">Todo</div>
+    <table class="schema">
+      <thead><tr><th style="width: 38%;">field</th><th style="width: 30%;">type</th><th>note</th></tr></thead>
+      <tbody>
+        <tr><td class="k">id</td><td class="t">string</td><td></td></tr>
+        <tr><td class="k">house_id</td><td class="t">string</td><td class="n">→ House</td></tr>
+        <tr><td class="k">text</td><td class="t">string</td><td></td></tr>
+        <tr><td class="k">status</td><td class="t">enum</td><td class="n">open · done · shelved</td></tr>
+        <tr><td class="k">priority</td><td class="t">int</td><td class="n">lower = higher</td></tr>
+        <tr><td class="k">source</td><td class="t">enum</td><td class="n">manual · chat</td></tr>
+        <tr><td class="k">chat_message_id</td><td class="t">string?</td><td class="n">→ Message (origin)</td></tr>
+        <tr><td class="k">created_at, completed_at</td><td class="t">timestamp</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <div class="entity-name">TodoProposal</div>
+    <table class="schema">
+      <thead><tr><th style="width: 38%;">field</th><th style="width: 30%;">type</th><th>note</th></tr></thead>
+      <tbody>
+        <tr><td class="k">id</td><td class="t">string</td><td></td></tr>
+        <tr><td class="k">message_id</td><td class="t">string</td><td class="n">→ Message</td></tr>
+        <tr><td class="k">text</td><td class="t">string</td><td class="n">proposed wording</td></tr>
+        <tr><td class="k">status</td><td class="t">enum</td><td class="n">pending · accepted · edited · skipped</td></tr>
+        <tr><td class="k">resulting_todo_id</td><td class="t">string?</td><td class="n">→ Todo if accepted</td></tr>
+      </tbody>
+    </table>
+
+    <h3>The LLM contract</h3>
+
+    <p>Every chat turn assembles the same prompt structure server-side:</p>
+
+<pre class="diagram">
+<span class="accent">┌─ system ──────────────────────────────────────────┐</span>
+<span class="accent">│</span>  <span class="dim">role instruction (static)</span>                       <span class="accent">│</span>
+<span class="accent">│</span>    "You are a thinking partner inside the         <span class="accent">│</span>
+<span class="accent">│</span>     house of [name]…"                             <span class="accent">│</span>
+<span class="accent">│</span>                                                   <span class="accent">│</span>
+<span class="accent">│</span>  <span class="dim">house definition (verbatim, per-house static)</span>   <span class="accent">│</span>
+<span class="accent">│</span>                                                   <span class="accent">│</span>
+<span class="accent">│</span>  <span class="dim">meta_md (per-house, slow-changing)</span>              <span class="accent">│</span>
+<span class="accent">│</span>                                                   <span class="accent">│</span>
+<span class="accent">│</span>  <span class="dim">last week's summary (per-week, static once set)</span>  <span class="accent">│</span>
+<span class="accent">│</span>                                                   <span class="accent">│</span>
+<span class="accent">│</span>  <span class="dim">current open todos (volatile)</span>                   <span class="accent">│</span>
+<span class="accent">└───────────────────────────────────────────────────┘</span>
+<span class="accent">┌─ messages ────────────────────────────────────────┐</span>
+<span class="accent">│</span>  full week-scoped transcript                      <span class="accent">│</span>
+<span class="accent">└───────────────────────────────────────────────────┘</span>
+<span class="accent">┌─ tools ───────────────────────────────────────────┐</span>
+<span class="accent">│</span>  propose_todo(text: string)                       <span class="accent">│</span>
+<span class="accent">│</span>    → renders as inline confirmation card          <span class="accent">│</span>
+<span class="accent">└───────────────────────────────────────────────────┘</span>
+
+<span class="caption">prompt cache the first four blocks; only the last two change per turn</span>
+</pre>
+
+    <p>The first four system blocks change rarely. Anthropic prompt caching on the static prefix reduces per-turn cost to roughly the volatile-todos block plus the conversation tail. For a house with steady use, that drops chat to a few cents per day.</p>
+
+    <h3>Cost</h3>
+
+    <p>Twelve houses, ongoing conversations, weekly summaries, real use &mdash; non-trivial token spend, but bounded. Rough envelope:</p>
+    <ul>
+      <li>Chat turn (Sonnet, cached prefix): ~$0.005&ndash;$0.02 per turn.</li>
+      <li>Weekly summary (Opus, one call per active house): ~$0.10&ndash;$0.30 each. 12 houses × 4 weeks &asymp; $5&ndash;$15/mo if every house is active.</li>
+      <li>Realistic monthly total at heavy use: $20&ndash;$50.</li>
+    </ul>
+    <p>Settings shows a running monthly token counter with a soft cap. First month calibrates expectations &mdash; until then the cap is advisory.</p>
+
+    <div class="callout">
+      <div class="heading">Operational principle</div>
+      Atrium should be the kind of tool that runs unattended for months. No cron jobs to monitor, no queues to drain, no schemas to migrate on a deadline. The only required scheduled work &mdash; weekly rollover &mdash; runs lazily inside a normal request. There is no separate worker process.
+    </div>
+
+  </section>
+
+  <hr class="rule">
+
+  <p style="text-align: center; font-style: italic; color: var(--ink-soft); margin: 0;">
+    Two screens. One drawer. One lazy weekly job.<br>
+    Everything else is just the rooms breathing.
+  </p>
+
+  <footer class="colophon">
+    <span>Atrium &mdash; Process 01</span>
+    <span>Draft &middot; 2026 · 05</span>
+  </footer>
+
+</div>
+
+</body>
+</html>

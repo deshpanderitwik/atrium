@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Atrium — a proposal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper:        #14110d;
+    --paper-warm:   #1d1812;
+    --ink:          #e6d9bc;
+    --ink-soft:     #a89a7d;
+    --ink-faint:    #6e6451;
+    --rule:         #322a20;
+    --oxblood:      #c97468;
+    --oxblood-soft: #8a4039;
+    --serif:        "EB Garamond", "Cormorant Garamond", Georgia, serif;
+    --mono:         "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 19px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(230,217,188,0.04), transparent 50%),
+      radial-gradient(circle at 85% 80%, rgba(201,116,104,0.06), transparent 55%);
+    min-height: 100vh;
+  }
+
+  .page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 96px 32px 160px;
+  }
+
+  /* ---------- Header ---------- */
+
+  header.front {
+    text-align: center;
+    margin-bottom: 120px;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 28px;
+  }
+
+  h1.title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 88px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    margin: 0 0 22px;
+    color: var(--ink);
+  }
+
+  .subtitle {
+    font-style: italic;
+    font-size: 22px;
+    color: var(--ink-soft);
+    margin: 0 auto;
+    max-width: 460px;
+    line-height: 1.45;
+  }
+
+  .ornament {
+    margin: 56px auto 0;
+    width: 1px;
+    height: 56px;
+    background: linear-gradient(to bottom, transparent, var(--rule), transparent);
+  }
+
+  /* ---------- Sections ---------- */
+
+  section {
+    margin-bottom: 88px;
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .section-label::before {
+    content: "";
+    display: inline-block;
+    width: 24px;
+    height: 1px;
+    background: var(--oxblood-soft);
+  }
+
+  h2 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 36px;
+    line-height: 1.18;
+    letter-spacing: -0.005em;
+    margin: 0 0 28px;
+    color: var(--ink);
+  }
+
+  h3 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-style: italic;
+    font-size: 22px;
+    color: var(--ink);
+    margin: 40px 0 12px;
+  }
+
+  p {
+    margin: 0 0 18px;
+    color: var(--ink);
+  }
+
+  p.lede {
+    font-size: 21px;
+    color: var(--ink-soft);
+    font-style: italic;
+    margin-bottom: 32px;
+  }
+
+  em { font-style: italic; color: var(--ink); }
+  strong { font-weight: 600; }
+
+  a {
+    color: var(--oxblood);
+    text-decoration: none;
+    border-bottom: 1px solid var(--oxblood-soft);
+  }
+
+  ul, ol {
+    padding-left: 1.4em;
+    margin: 0 0 18px;
+  }
+  li {
+    margin-bottom: 6px;
+  }
+
+  hr.rule {
+    border: 0;
+    height: 1px;
+    background: var(--rule);
+    margin: 88px 0;
+  }
+
+  /* ---------- The atrium (preview of home screen) ---------- */
+
+  .atrium-preview {
+    background: var(--paper-warm);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 44px 40px 36px;
+    margin: 36px 0 12px;
+    box-shadow:
+      0 1px 0 rgba(230,217,188,0.04) inset,
+      0 24px 60px -30px rgba(0,0,0,0.6);
+  }
+
+  .atrium-preview .door {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(50,42,32,0.85);
+  }
+  .atrium-preview .door:last-child { border-bottom: 0; }
+
+  .door .name-block {
+    flex: 1;
+    padding-right: 24px;
+  }
+  .door .name {
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: 0.005em;
+    color: var(--ink);
+  }
+  .door .def {
+    font-style: italic;
+    font-size: 14px;
+    color: var(--ink-faint);
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+  .door .count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+    flex-shrink: 0;
+    padding-top: 6px;
+  }
+
+  .preview-caption {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    text-align: center;
+    margin-bottom: 0;
+  }
+
+  /* ---------- House view sketch ---------- */
+
+  .house-sketch {
+    background: var(--paper-warm);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    margin: 36px 0 12px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px -30px rgba(0,0,0,0.6);
+  }
+  .house-sketch .top {
+    padding: 22px 28px 18px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .house-sketch .top .back {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .house-sketch .top .h-name {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-top: 4px;
+  }
+  .house-sketch .top .h-def {
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 15px;
+    margin-top: 2px;
+  }
+  .house-sketch .body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .house-sketch .pane {
+    padding: 22px 24px 24px;
+  }
+  .house-sketch .pane + .pane {
+    border-left: 1px solid var(--rule);
+  }
+  .pane h4 {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 14px;
+    font-weight: 500;
+  }
+  .todo-row {
+    font-size: 16px;
+    padding: 6px 0;
+    color: var(--ink);
+    line-height: 1.4;
+    border-bottom: 1px dotted rgba(50,42,32,0.9);
+  }
+  .todo-row:last-child { border-bottom: 0; }
+  .todo-row.done {
+    color: var(--ink-faint);
+    text-decoration: line-through;
+    text-decoration-color: rgba(110,100,81,0.55);
+  }
+  .msg {
+    font-size: 15px;
+    line-height: 1.5;
+    margin-bottom: 14px;
+    color: var(--ink);
+  }
+  .msg.user {
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+  .propose-card {
+    background: rgba(201,116,104,0.08);
+    border: 1px solid rgba(201,116,104,0.28);
+    border-radius: 3px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: var(--ink);
+    margin-top: 10px;
+  }
+  .propose-card .label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .propose-card .text { font-style: italic; }
+  .propose-card .actions {
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    color: var(--ink-soft);
+  }
+  .propose-card .actions .pri { color: var(--oxblood); }
+
+  @media (max-width: 540px) {
+    .house-sketch .body { grid-template-columns: 1fr; }
+    .house-sketch .pane + .pane { border-left: 0; border-top: 1px solid var(--rule); }
+  }
+
+  /* ---------- Decisions list ---------- */
+
+  ol.decisions {
+    counter-reset: dec;
+    list-style: none;
+    padding: 0;
+  }
+  ol.decisions li {
+    counter-increment: dec;
+    padding: 14px 0 14px 56px;
+    position: relative;
+    border-bottom: 1px solid var(--rule);
+  }
+  ol.decisions li:last-child { border-bottom: 0; }
+  ol.decisions li::before {
+    content: counter(dec, upper-roman);
+    position: absolute;
+    left: 0;
+    top: 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: var(--oxblood);
+    width: 40px;
+  }
+
+  /* ---------- Negative space callout ---------- */
+
+  .negative {
+    border-left: 2px solid var(--oxblood-soft);
+    padding: 6px 0 6px 24px;
+    margin: 24px 0 28px;
+    color: var(--ink-soft);
+  }
+  .negative .heading {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+    margin-bottom: 6px;
+  }
+
+  /* ---------- Steps ---------- */
+
+  ol.steps {
+    list-style: none;
+    counter-reset: step;
+    padding: 0;
+    margin: 0;
+  }
+  ol.steps li {
+    counter-increment: step;
+    position: relative;
+    padding: 10px 0 10px 48px;
+  }
+  ol.steps li::before {
+    content: counter(step, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 13px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+  ol.steps li.now {
+    color: var(--oxblood);
+  }
+  ol.steps li.now::before { color: var(--oxblood); }
+
+  /* ---------- Colophon ---------- */
+
+  footer.colophon {
+    margin-top: 120px;
+    padding-top: 32px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    text-align: center;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ---------- Small ---------- */
+  @media (max-width: 600px) {
+    h1.title { font-size: 64px; }
+    h2 { font-size: 28px; }
+    .page { padding: 64px 24px 120px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+<header class="front">
+  <div class="eyebrow">Process · 00 · Proposal</div>
+  <h1 class="title">Atrium</h1>
+  <p class="subtitle">A contemplative tool for allocating attention across twelve domains of life.</p>
+  <div class="ornament"></div>
+</header>
+
+<!-- ---------- 1. What it is ---------- -->
+<section>
+  <div class="section-label">I &mdash; Premise</div>
+  <h2>The open central court</h2>
+
+  <p class="lede">The name comes from the Roman <em>atrium</em> &mdash; the open central court of a house, the room you pass through to reach every other room.</p>
+
+  <p>You open the app. You see twelve names. You choose where to spend yourself today. Inside each of the twelve: an ongoing prioritized list, and a week-long conversation with an LLM that serves as a thinking partner for that domain. That is the whole tool.</p>
+
+  <p>Load-balancing across a life is hard because the twelve domains are normally invisible to each other. They live in different apps, different conversations, different parts of the head. Atrium puts them side by side, by name, in a single column, and asks: <em>which one today?</em></p>
+
+  <div class="negative">
+    <div class="heading">Reading the negative space</div>
+    Atrium is not a dashboard. There are no vitality bars, no scores, no felt-state ratings, no inferred metrics. It does not tell you how you are doing. It is not a productivity app &mdash; no streaks, no throughput, no &ldquo;you have been neglecting <em>Polis</em>&rdquo; nudges. The LLM in each room is a thinking partner, not a coach. The load balancing emerges from the user seeing the twelve names and choosing. The app&rsquo;s job is to hold the lists and the conversations with fidelity.
+  </div>
+</section>
+
+<!-- ---------- 2. The twelve ---------- -->
+<section>
+  <div class="section-label">II &mdash; The Twelve Houses</div>
+  <h2>Self, outward to world</h2>
+
+  <p class="lede">Order matters &mdash; it moves from the body outward to the larger fabric. Preserve it. Do not alphabetize.</p>
+
+  <p class="preview-caption">Home &mdash; the atrium</p>
+  <div class="atrium-preview">
+
+    <div class="door">
+      <div class="name-block">
+        <div class="name">Corpus</div>
+        <div class="def">The breath is right, the posture is right, the gait is right. Movement without friction.</div>
+      </div>
+      <div class="count">3 open</div>
+    </div>
+
+    <div class="door">
+      <div class="name-block">
+        <div class="name">Animus</div>
+        <div class="def">The wound is met cleanly; the day's emotion integrates in sleep; you wake whole.</div>
+      </div>
+      <div class="count">1 open</div>
+    </div>
+
+    <div class="door">
+      <div class="name-block">
+        <div class="name">Tempus</div>
+        <div class="def">The day has rhythm; rest and work alternate in proportion; the week breathes.</div>
+      </div>
+      <div class="count">&mdash;</div>
+    </div>
+
+    <div class="door">
+      <div class="name-block">
+        <div class="name">Domus</div>
+        <div class="def">The apartment exhales. Every object is where it wants to be. Light falls correctly on the surfaces.</div>
+      </div>
+      <div class="count">5 open</div>
+    </div>
+
+    <div class="door">
+      <div class="name-block">
+        <div class="name">Patrimonium</div>
+        <div class="def">Enough. Resources flow without anxiety; nothing in the life is starving for lack.</div>
+      </div>
+      <div class="count">2 open</div>
+    </div>
+
+    <div class="door">
+      <div class="name-block">
+        <div class="name">Opus</div>
+        <div class="def">The problem suddenly has shape; the next move is obvious; forward motion in the chest.</div>
+      </div>
+      <div class="count">8 open</div>
+    </div>
+
+    <div class="door">
+      <div class="name-block">
+        <div class="name">Ars</div>
+        <div class="def">The right notes. The phrase that lands. The image that works. The made thing is more than the parts that went into it.</div>
+      </div>
+      <div class="count">2 open</div>
+    </div>
+
+    <div class="door">
+      <div class="name-block">
+        <div class="name">Studium</div>
+        <div class="def">The concept clicks. You can re-derive it from first principles. It stays.</div>
+      </div>
+      <div class="count">4 open</div>
+    </div>
+
+    <div class="door">
+      <div class="name-block">
+        <div class="name">Vinculum</div>
+        <div class="def">A conversation in which the other person feels met, you feel met, and something emerges between you that wasn&rsquo;t there alone.</div>
+      </div>
+      <div class="count">3 open</div>
+    </div>
+
+    <div class="door">
+      <div class="name-block">
+        <div class="name">Polis</div>
+        <div class="def">Contribution to the larger fabric without exhausting the self.</div>
+      </div>
+      <div class="count">1 open</div>
+    </div>
+
+    <div class="door">
+      <div class="name-block">
+        <div class="name">Naturum</div>
+        <div class="def">Time outdoors that re-regulates the body. The awe of altitude, the smell of pine, the indifferent ocean.</div>
+      </div>
+      <div class="count">&mdash;</div>
+    </div>
+
+    <div class="door">
+      <div class="name-block">
+        <div class="name">Ludus</div>
+        <div class="def">Laughter that surprises you. Play that returns you to lightness.</div>
+      </div>
+      <div class="count">1 open</div>
+    </div>
+
+  </div>
+
+  <p style="margin-top: 24px;">The definitions are not flavor text. They are the house&rsquo;s identity. The LLM&rsquo;s system prompt for each house includes its definition verbatim. The UI shows the definition under the name on the home screen and in every house&rsquo;s header.</p>
+</section>
+
+<!-- ---------- 3. House view ---------- -->
+<section>
+  <div class="section-label">III &mdash; Inside a house</div>
+  <h2>Two panes, nothing else</h2>
+
+  <p class="lede">A list pane on the left, a conversation pane on the right. On mobile, two tabs. That is the whole interior.</p>
+
+  <div class="house-sketch">
+    <div class="top">
+      <div class="back">&larr; atrium</div>
+      <div class="h-name">Opus</div>
+      <div class="h-def">The problem suddenly has shape; the next move is obvious; forward motion in the chest.</div>
+    </div>
+    <div class="body">
+
+      <div class="pane">
+        <h4>List</h4>
+        <div class="todo-row">Outline the proposal microsite</div>
+        <div class="todo-row">Schema + Drizzle migrations</div>
+        <div class="todo-row">Home screen &mdash; just the doors</div>
+        <div class="todo-row">House view shell, two panes</div>
+        <div class="todo-row done">Draft the twelve definitions</div>
+        <div class="todo-row done">Pick a serif</div>
+      </div>
+
+      <div class="pane">
+        <h4>This week</h4>
+        <p class="msg user">The next move on this is unclear &mdash; the schema is fine but I&rsquo;m not sure whether to start with list-only or wire the conversation pane first.</p>
+        <p class="msg">Two routes. List-only first means a working tool by end of session; conversation second means the partner is silent during the very period you most need it. The brief itself recommends list-only first &mdash; steps 1&ndash;4 of the build order. The chest-motion is in shipping something usable today.</p>
+        <div class="propose-card">
+          <span class="label">+ Add to list</span>
+          <span class="text">&ldquo;Ship list-only version end-to-end before touching the LLM&rdquo;</span>
+          <div class="actions">[ <span class="pri">Add</span> ] &nbsp; [ Edit ] &nbsp; [ Skip ]</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <p class="preview-caption" style="margin-top: 14px;">House view &mdash; <em>Opus</em></p>
+
+  <h3>The list</h3>
+  <p>Open todos at top, ordered by manual priority. A subtle divider, then recently-completed items struck through and faded. Shelved items collapsed under a disclosure. Add manually at the top of the list. Tap to edit inline. Long-press for the item menu: <em>done, shelve, unshelve, delete</em>. Drag to reorder. Completed todos can be uncompleted &mdash; they fall back to the bottom of the open list.</p>
+  <p><strong>Shelve is the default soft-delete.</strong> Delete requires confirmation. Shelve does not. Atrium is a forgiving system.</p>
+
+  <h3>The conversation</h3>
+  <p>Continuous within a week. On Sunday at 23:59 local, the week closes. Execution is lazy &mdash; nothing fires at midnight; the rollover happens the next time you open the house. At rollover the prior week is locked read-only, a 200&ndash;400 word summary is generated from the transcript and the list state, and a new empty conversation begins with the summary as a card at the top.</p>
+  <p>If a week had no messages, no summary is generated. The new week begins blank.</p>
+
+  <h3>Inline extraction, never silent</h3>
+  <p>When the LLM identifies an action-shaped item, it calls a <code style="font-family: var(--mono); font-size: 0.85em;">propose_todo</code> tool. The proposal renders inline as a small card with three buttons: <em>Add</em>, <em>Edit</em>, <em>Skip</em>. Nothing is added to the list without explicit confirmation. Background extraction is deliberately not supported.</p>
+
+  <h3>meta_md &mdash; the long memory</h3>
+  <p>Each house holds a user-edited markdown note that survives weekly rollover and is included in every system prompt for that house. In <em>Vinculum</em> it names the people who matter and how you think about them. In <em>Opus</em>, current projects and what success looks like. In <em>Corpus</em>, training goals and what fluid movement means for this body. In <em>Patrimonium</em>, what enough means. This field is what makes the partner genuinely useful over months rather than just a chat that resets.</p>
+</section>
+
+<!-- ---------- 4. Aesthetic ---------- -->
+<section>
+  <div class="section-label">IV &mdash; Aesthetic</div>
+  <h2>A contemplative surface</h2>
+
+  <p class="lede">The visual design should feel like an open room, not a packed dashboard.</p>
+
+  <ul>
+    <li><strong>Typography.</strong> A refined serif for display &mdash; EB Garamond or Cormorant. Mono only for metadata and structural labels. No Inter, no Roboto, no system sans.</li>
+    <li><strong>Color.</strong> Warm, restrained. Vellum, parchment, ink. One muted accent used sparingly &mdash; oxblood here. Avoid bright primaries.</li>
+    <li><strong>Density.</strong> Generous whitespace. The home screen, in particular, should feel like an open room.</li>
+    <li><strong>Motion.</strong> Minimal. Subtle transitions only. No springs on every interaction.</li>
+    <li><strong>Words over icons.</strong> Don&rsquo;t reach for an icon library by reflex. A text label is usually better.</li>
+  </ul>
+
+  <p>This microsite is itself a calibration of the aesthetic. The app should feel of a piece with it.</p>
+</section>
+
+<!-- ---------- 5. Decisions ---------- -->
+<section>
+  <div class="section-label">V &mdash; Decisions log</div>
+  <h2>Settled</h2>
+  <p class="lede">Resolved during design. Don&rsquo;t re-litigate without a real reason.</p>
+
+  <ol class="decisions">
+    <li><strong>No dashboard.</strong> Atrium does not measure the user.</li>
+    <li><strong>No felt-state rating.</strong> Completing todos is the only signal; the user&rsquo;s own choosing on the home screen is the load-balancing mechanism.</li>
+    <li><strong>Sunday night rollover, lazy execution.</strong> All houses share the same week boundary; nothing fires at midnight.</li>
+    <li><strong>Inline todo extraction with explicit confirmation.</strong> No background extraction.</li>
+    <li><strong>Per-house meta_md.</strong> Long-lived context that survives weekly rollover and rides in every system prompt.</li>
+    <li><strong>Order preserved &mdash; self to world.</strong> Don&rsquo;t alphabetize. The progression is part of the form.</li>
+    <li><strong>Shelve is the default soft-delete.</strong> Delete requires confirmation. Shelve does not.</li>
+  </ol>
+</section>
+
+<!-- ---------- 6. Out of scope ---------- -->
+<section>
+  <div class="section-label">VI &mdash; Out of scope for v1</div>
+  <h2>What we are not building</h2>
+
+  <p>Resist building these into v1 even when they feel obvious.</p>
+
+  <ul>
+    <li>Notifications, reminders, nudges of any kind.</li>
+    <li>Cross-house analytics &mdash; &ldquo;you spent 40% of your time on Opus&rdquo;.</li>
+    <li>Felt-state ratings, vitality scores, dashboard tiles.</li>
+    <li>Streaks, gamification, achievement markers.</li>
+    <li>Collaboration, sharing, multi-user.</li>
+    <li>Native mobile apps. Web, responsive.</li>
+    <li>Voice input. (Tempting for the conversation pane &mdash; defer to v1.5.)</li>
+  </ul>
+</section>
+
+<!-- ---------- 7. Building order ---------- -->
+<section>
+  <div class="section-label">VII &mdash; Building order</div>
+  <h2>One useful slice at a time</h2>
+
+  <p class="lede">Each step should be usable on its own. The MVP of the MVP is steps 1&ndash;4 &mdash; a working list-only Atrium on real data, before anything talks back.</p>
+
+  <ol class="steps">
+    <li class="now">Schema + migrations. Seed the twelve houses.</li>
+    <li>Home screen &mdash; the list of doors with open-todo counts.</li>
+    <li>House view shell &mdash; header, two-pane layout, back link.</li>
+    <li>Todo CRUD in the list pane. No LLM yet.</li>
+    <li>Conversation pane with plain LLM call. No tools, no week boundary.</li>
+    <li>Add the <code style="font-family: var(--mono); font-size: 0.85em;">propose_todo</code> tool and the inline confirmation card.</li>
+    <li>Add per-house meta_md.</li>
+    <li>Add week boundary logic and lazy rollover.</li>
+    <li>Add summary generation on rollover.</li>
+    <li>Aesthetic pass.</li>
+  </ol>
+</section>
+
+<!-- ---------- 8. Open questions ---------- -->
+<section>
+  <div class="section-label">VIII &mdash; Open questions</div>
+  <h2>To resolve</h2>
+
+  <ul>
+    <li>Hosted (Turso / Neon) vs local (SQLite on disk) &mdash; depends on whether phone access matters from day one.</li>
+    <li>Summary card &mdash; collapsed by default, or open? Suggest: open the first time the week is viewed, collapsed thereafter.</li>
+    <li><code style="font-family: var(--mono); font-size: 0.85em;">meta_md</code> editing &mdash; inline side panel or separate modal? Suggest: side panel that slides out from the right of the house view.</li>
+    <li>Monthly cost cap default value.</li>
+  </ul>
+</section>
+
+<hr class="rule">
+
+<p style="text-align: center; font-style: italic; color: var(--ink-soft); margin: 0;">
+  A list of doors, opening from the body outward to the world.<br>
+  The app&rsquo;s job is to hold the rooms with fidelity.
+</p>
+
+<footer class="colophon">
+  <span>Atrium &mdash; Process 00</span>
+  <span>Draft &middot; 2026 · 05</span>
+</footer>
+
+</div>
+
+</body>
+</html>

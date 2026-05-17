@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+*.moved-aside
+
+# xcodegen — project file is generated from project.yml
+Atrium/Atrium.xcodeproj/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Editor / IDE
+.idea/
+*.swp
+*.swo
+
+# Personal / local overrides
+*.local

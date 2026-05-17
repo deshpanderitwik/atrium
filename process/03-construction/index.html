@@ -1,0 +1,1186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Atrium — construction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper:        #14110d;
+    --paper-warm:   #1d1812;
+    --paper-deep:   #110e0a;
+    --ink:          #e6d9bc;
+    --ink-soft:     #a89a7d;
+    --ink-faint:    #6e6451;
+    --rule:         #322a20;
+    --oxblood:      #c97468;
+    --oxblood-soft: #8a4039;
+    --serif:        "EB Garamond", "Cormorant Garamond", Georgia, serif;
+    --mono:         "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 19px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(230,217,188,0.04), transparent 50%),
+      radial-gradient(circle at 85% 80%, rgba(201,116,104,0.06), transparent 55%);
+    min-height: 100vh;
+  }
+  .page {
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 72px 32px 160px;
+  }
+
+  /* breadcrumb */
+  .breadcrumb {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 56px;
+  }
+  .breadcrumb a {
+    color: var(--ink-faint);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+  }
+  .breadcrumb a:hover { color: var(--oxblood); border-bottom-color: var(--oxblood-soft); }
+
+  /* header */
+  header.front {
+    text-align: center;
+    margin-bottom: 96px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 28px;
+  }
+  h1.title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 80px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    margin: 0 0 22px;
+  }
+  .subtitle {
+    font-style: italic;
+    font-size: 22px;
+    color: var(--ink-soft);
+    margin: 0 auto;
+    max-width: 540px;
+    line-height: 1.45;
+  }
+  .ornament {
+    margin: 56px auto 0;
+    width: 1px;
+    height: 56px;
+    background: linear-gradient(to bottom, transparent, var(--rule), transparent);
+  }
+
+  /* sections */
+  section { margin-bottom: 104px; }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .section-label::before {
+    content: "";
+    display: inline-block;
+    width: 24px;
+    height: 1px;
+    background: var(--oxblood-soft);
+  }
+
+  h2 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 36px;
+    line-height: 1.18;
+    margin: 0 0 28px;
+  }
+  h3 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-style: italic;
+    font-size: 22px;
+    margin: 44px 0 14px;
+  }
+  h4 {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+    margin: 32px 0 12px;
+    font-weight: 500;
+  }
+
+  p { margin: 0 0 18px; }
+  p.lede {
+    font-size: 21px;
+    color: var(--ink-soft);
+    font-style: italic;
+    margin-bottom: 32px;
+  }
+  em { font-style: italic; color: var(--ink); }
+  strong { font-weight: 600; }
+  a {
+    color: var(--oxblood);
+    text-decoration: none;
+    border-bottom: 1px solid var(--oxblood-soft);
+  }
+  ul, ol { padding-left: 1.4em; margin: 0 0 18px; }
+  li { margin-bottom: 6px; }
+
+  code, .mono {
+    font-family: var(--mono);
+    font-size: 0.85em;
+    color: var(--ink-soft);
+  }
+
+  /* ASCII diagram block */
+  pre.diagram {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    background: var(--paper-warm);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 28px 24px;
+    margin: 28px 0;
+    overflow-x: auto;
+    box-shadow: 0 24px 60px -30px rgba(0,0,0,0.6);
+  }
+  pre.diagram .accent { color: var(--oxblood); }
+  pre.diagram .name { color: var(--ink); font-weight: 500; }
+  pre.diagram .dim { color: var(--ink-faint); }
+  pre.diagram .caption {
+    display: block;
+    color: var(--ink-faint);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-top: 12px;
+    text-align: center;
+  }
+
+  /* Swift code block */
+  pre.code {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    background: var(--paper-deep);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 22px 24px;
+    margin: 22px 0;
+    overflow-x: auto;
+    box-shadow: 0 24px 60px -30px rgba(0,0,0,0.6);
+  }
+  pre.code .kw  { color: var(--oxblood); }
+  pre.code .ty  { color: #b8a888; }
+  pre.code .at  { color: #d99c8a; }
+  pre.code .st  { color: #b9c69a; }
+  pre.code .cm  { color: var(--ink-faint); font-style: italic; }
+  pre.code .fn  { color: var(--ink); }
+  pre.code .num { color: #c89a6c; }
+  pre.code .label {
+    display: block;
+    color: var(--ink-faint);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* pivot callout */
+  .pivot {
+    background: linear-gradient(180deg, rgba(201,116,104,0.07), rgba(201,116,104,0.02));
+    border: 1px solid rgba(201,116,104,0.28);
+    border-radius: 4px;
+    padding: 26px 28px 22px;
+    margin: 28px 0 24px;
+  }
+  .pivot .stamp {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+    margin-bottom: 8px;
+  }
+  .pivot .what {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 22px;
+    color: var(--ink);
+    margin-bottom: 12px;
+    line-height: 1.35;
+  }
+  .pivot .why {
+    color: var(--ink-soft);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  /* keep/change table */
+  .delta {
+    margin: 22px 0 28px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .delta .row {
+    display: grid;
+    grid-template-columns: 110px 1fr 1fr;
+    border-bottom: 1px solid var(--rule);
+  }
+  .delta .row:last-child { border-bottom: 0; }
+  .delta .row.head {
+    background: var(--paper-warm);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+  }
+  .delta .cell {
+    padding: 14px 18px;
+    border-right: 1px solid var(--rule);
+    font-size: 15px;
+    line-height: 1.45;
+  }
+  .delta .cell:last-child { border-right: 0; }
+  .delta .cell.layer { color: var(--ink-faint); font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
+  .delta .cell.before { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: rgba(110,100,81,0.5); }
+  .delta .cell.after  { color: var(--ink); }
+
+  /* layered components map */
+  .components {
+    margin: 28px 0;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .components .group {
+    background: var(--paper-warm);
+    border-bottom: 1px solid var(--rule);
+  }
+  .components .group:last-child { border-bottom: 0; }
+  .components .group .top {
+    padding: 18px 26px 8px;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+  .components .group .tier {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+  }
+  .components .group .what {
+    font-family: var(--serif);
+    font-size: 19px;
+    font-style: italic;
+    color: var(--ink);
+  }
+  .components ul.items {
+    list-style: none;
+    padding: 0 26px 18px;
+    margin: 0;
+  }
+  .components ul.items li {
+    padding: 6px 0;
+    border-bottom: 1px dotted rgba(50,42,32,0.7);
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 16px;
+    font-size: 15px;
+    line-height: 1.45;
+  }
+  .components ul.items li:last-child { border-bottom: 0; }
+  .components ul.items .nm {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink);
+  }
+  .components ul.items .desc { color: var(--ink-soft); }
+
+  /* communication patterns */
+  .pattern {
+    border-top: 1px solid var(--rule);
+    padding: 26px 0;
+  }
+  .pattern:last-child { border-bottom: 1px solid var(--rule); }
+  .pattern .num {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--oxblood);
+    margin-bottom: 6px;
+  }
+  .pattern .name {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 24px;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+  .pattern .gist {
+    font-style: italic;
+    color: var(--ink-soft);
+    margin-bottom: 12px;
+    line-height: 1.45;
+  }
+
+  /* provocation cards */
+  .provocations {
+    display: grid;
+    gap: 16px;
+    margin: 32px 0;
+  }
+  .prov {
+    background: var(--paper-warm);
+    border: 1px solid var(--rule);
+    border-left: 2px solid var(--oxblood-soft);
+    border-radius: 4px;
+    padding: 22px 26px 20px;
+  }
+  .prov .num {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    color: var(--oxblood);
+    margin-bottom: 6px;
+  }
+  .prov .name {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 22px;
+    color: var(--ink);
+    margin-bottom: 8px;
+    line-height: 1.25;
+  }
+  .prov .what {
+    font-size: 16px;
+    color: var(--ink);
+    line-height: 1.55;
+    margin-bottom: 10px;
+  }
+  .prov .what .lbl {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .prov .tradeoff {
+    font-style: italic;
+    font-size: 15px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    border-top: 1px dotted var(--rule);
+    padding-top: 10px;
+    margin-top: 12px;
+  }
+
+  /* steps */
+  ol.steps {
+    list-style: none;
+    counter-reset: step;
+    padding: 0;
+    margin: 0;
+  }
+  ol.steps li {
+    counter-increment: step;
+    position: relative;
+    padding: 14px 0 14px 56px;
+    border-top: 1px solid var(--rule);
+    line-height: 1.5;
+  }
+  ol.steps li:last-child { border-bottom: 1px solid var(--rule); }
+  ol.steps li::before {
+    content: counter(step, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 17px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--oxblood);
+    width: 40px;
+  }
+  ol.steps li .stage {
+    display: block;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 2px;
+  }
+  ol.steps li .what {
+    font-family: var(--serif);
+    font-size: 19px;
+    color: var(--ink);
+  }
+  ol.steps li .why {
+    color: var(--ink-soft);
+    font-size: 15px;
+    margin-top: 4px;
+    font-style: italic;
+  }
+  ol.steps li.milestone .what::after {
+    content: " · milestone";
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--oxblood);
+    font-style: normal;
+    margin-left: 8px;
+  }
+
+  /* callout */
+  .callout {
+    border-left: 2px solid var(--oxblood-soft);
+    padding: 6px 0 6px 24px;
+    margin: 24px 0;
+    color: var(--ink-soft);
+  }
+  .callout .heading {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+    margin-bottom: 6px;
+  }
+
+  hr.rule {
+    border: 0;
+    height: 1px;
+    background: var(--rule);
+    margin: 88px 0;
+  }
+
+  footer.colophon {
+    margin-top: 96px;
+    padding-top: 32px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    text-align: center;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  @media (max-width: 640px) {
+    h1.title { font-size: 56px; }
+    h2 { font-size: 28px; }
+    .page { padding: 56px 22px 120px; }
+    pre.diagram, pre.code { font-size: 10.5px; padding: 18px 14px; }
+    .components ul.items li { grid-template-columns: 1fr; gap: 4px; }
+    .delta .row { grid-template-columns: 1fr; }
+    .delta .cell { border-right: 0; border-top: 1px solid var(--rule); }
+    .delta .row.head { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="breadcrumb">
+    <a href="../">Process</a> &nbsp;/&nbsp; 03 &middot; Construction
+  </div>
+
+  <header class="front">
+    <div class="eyebrow">Process &middot; 03 &middot; Construction</div>
+    <h1 class="title">On building</h1>
+    <p class="subtitle">iOS first. SwiftUI on top, SwiftData beneath, an Anthropic stream feeding each room. And a long look at the part still under-designed &mdash; how the houses remember.</p>
+    <div class="ornament"></div>
+  </header>
+
+  <!-- ============================================== -->
+  <!-- I — Pivot to iOS                                 -->
+  <!-- ============================================== -->
+  <section>
+    <div class="section-label">I &mdash; Pivot</div>
+    <h2>Native iOS, then maybe the web</h2>
+
+    <div class="pivot">
+      <div class="stamp">Change from Process 01</div>
+      <div class="what">Atrium is now a native iOS application first. A web client is deferred until there is an actual second surface to serve.</div>
+      <div class="why">The contemplative register asks for a tool that lives in the same pocket as the body. The home screen wants to be the first thing the thumb finds, not a tab in a browser. Notifications &mdash; even if v1 has none &mdash; will eventually want the system surface. The conversation pane wants voice; voice on iOS is one capability away, on web it is an arms race. SwiftUI&rsquo;s typography honors a serif more gracefully than most browsers do.</div>
+    </div>
+
+    <h3>What survives the pivot</h3>
+    <p>Almost everything that mattered. The brief is platform-agnostic; the architecture page&rsquo;s domain choices (twelve houses, weekly rollover, propose_todo tool, meta_md) carry over unchanged. The Anthropic API stays direct &mdash; called from the device. The data model is the same shape. The aesthetic stays.</p>
+
+    <h3>What changes</h3>
+
+    <div class="delta">
+      <div class="row head">
+        <div class="cell layer">Layer</div>
+        <div class="cell">Process 01 (web)</div>
+        <div class="cell">Process 03 (iOS)</div>
+      </div>
+      <div class="row">
+        <div class="cell layer">Client</div>
+        <div class="cell before">Next.js · App Router · React</div>
+        <div class="cell after">SwiftUI · iOS 17+ · Observable</div>
+      </div>
+      <div class="row">
+        <div class="cell layer">Data</div>
+        <div class="cell before">Drizzle ORM · SQLite / Turso</div>
+        <div class="cell after">SwiftData (on-device) · CloudKit sync</div>
+      </div>
+      <div class="row">
+        <div class="cell layer">LLM transport</div>
+        <div class="cell before">Server route → Anthropic</div>
+        <div class="cell after">URLSession SSE direct → Anthropic</div>
+      </div>
+      <div class="row">
+        <div class="cell layer">Auth</div>
+        <div class="cell before">Shared secret cookie</div>
+        <div class="cell after">Device passcode / Face ID gate</div>
+      </div>
+      <div class="row">
+        <div class="cell layer">Deploy</div>
+        <div class="cell before">Vercel + Turso</div>
+        <div class="cell after">TestFlight → App Store · solo build</div>
+      </div>
+      <div class="row">
+        <div class="cell layer">Sync</div>
+        <div class="cell before">N/A (server is source of truth)</div>
+        <div class="cell after">CloudKit private DB · E2E encrypted</div>
+      </div>
+      <div class="row">
+        <div class="cell layer">API key</div>
+        <div class="cell before">Server env var</div>
+        <div class="cell after">User-supplied, stored in Keychain</div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <div class="heading">Privacy as a quiet consequence</div>
+      Going iOS-first with on-device SwiftData + CloudKit private database + user-supplied Anthropic key means no third party (including us) ever sees a token of conversation. Atrium becomes a tool whose privacy story is structural, not promised. This is the deeper reason for the pivot.
+    </div>
+  </section>
+
+  <!-- ============================================== -->
+  <!-- II — UI setup & components                      -->
+  <!-- ============================================== -->
+  <section>
+    <div class="section-label">II &mdash; The component tree</div>
+    <h2>SwiftUI, top to bottom</h2>
+
+    <p class="lede">The whole UI is a small set of views and three coordinator objects living in the SwiftUI environment. Compact-width (iPhone) shows the list and chat as tabs; regular-width (iPad) shows them as a split pane.</p>
+
+<pre class="diagram">
+<span class="accent">AtriumApp</span>                       <span class="dim">@main · sets up ModelContainer, env</span>
+└─ <span class="accent">AppRoot</span>                      <span class="dim">passcode gate · first-launch seed</span>
+   ├─ <span class="accent">AtriumView</span>                <span class="dim">home screen · list of twelve doors</span>
+   │  └─ <span class="name">HouseDoor</span> ×12             <span class="dim">name · italic def · open-count</span>
+   │
+   ├─ <span class="accent">HouseView</span>                 <span class="dim">pushed via NavigationStack</span>
+   │  ├─ <span class="name">HouseHeader</span>               <span class="dim">←atrium · name · def · ⚙</span>
+   │  ├─ <span class="name">AdaptivePanes</span>             <span class="dim">compact: TabView, regular: HSplitView</span>
+   │  │  ├─ <span class="name">TodoListPane</span>
+   │  │  │  ├─ <span class="name">TodoInput</span>            <span class="dim">＋ add at top</span>
+   │  │  │  ├─ <span class="name">TodoRow</span> (open)
+   │  │  │  ├─ <span class="name">CompletedDivider</span>
+   │  │  │  ├─ <span class="name">TodoRow</span> (done)
+   │  │  │  └─ <span class="name">ShelfDisclosure</span>
+   │  │  └─ <span class="name">ChatPane</span>
+   │  │     ├─ <span class="name">SummaryCard</span>          <span class="dim">pinned after rollover</span>
+   │  │     ├─ <span class="name">MessageBubble</span> (user)
+   │  │     ├─ <span class="name">MessageBubble</span> (asst)
+   │  │     ├─ <span class="name">ProposeTodoCard</span>      <span class="dim">inline tool-call</span>
+   │  │     └─ <span class="name">Composer</span>             <span class="dim">text · (later) mic</span>
+   │  └─ .sheet → <span class="name">MetaMDPanel</span>       <span class="dim">slide-up markdown editor</span>
+   │
+   └─ <span class="dim">environment</span>
+      ├─ <span class="accent">LLMClient</span>               <span class="dim">streams chat · returns AsyncStream</span>
+      ├─ <span class="accent">RolloverCoordinator</span>     <span class="dim">lazy week-boundary check</span>
+      └─ <span class="accent">ProposalStore</span>           <span class="dim">pending tool-call proposals</span>
+
+<span class="caption">component tree · three coordinators in the environment</span>
+</pre>
+
+    <h3>Inventory, with one-line jobs</h3>
+
+    <div class="components">
+
+      <div class="group">
+        <div class="top"><div class="tier">Shell</div><div class="what">app frame &amp; navigation</div></div>
+        <ul class="items">
+          <li><span class="nm">AtriumApp</span><span class="desc">App entry. Wires up <code>ModelContainer</code>, injects coordinators, sets the EB Garamond font asset.</span></li>
+          <li><span class="nm">AppRoot</span><span class="desc">Face ID / passcode gate. On first launch, runs <code>HouseSeeder</code> to insert the twelve <code>House</code> rows.</span></li>
+          <li><span class="nm">NavigationStack</span><span class="desc">Holds the path. The atrium pushes a <code>House</code> identifier; <code>HouseView</code> renders for that ID.</span></li>
+        </ul>
+      </div>
+
+      <div class="group">
+        <div class="top"><div class="tier">Home</div><div class="what">the atrium</div></div>
+        <ul class="items">
+          <li><span class="nm">AtriumView</span><span class="desc">A single <code>List</code> of twelve <code>HouseDoor</code> rows. Reads houses via <code>@Query(sort: \.order)</code>.</span></li>
+          <li><span class="nm">HouseDoor</span><span class="desc">Latin name (serif), italic definition (secondary), open-todo count (mono). Whole row is the tap target.</span></li>
+        </ul>
+      </div>
+
+      <div class="group">
+        <div class="top"><div class="tier">House</div><div class="what">the room behind a door</div></div>
+        <ul class="items">
+          <li><span class="nm">HouseView</span><span class="desc">Container. Runs the rollover check in <code>.task</code>. Hosts header and adaptive panes.</span></li>
+          <li><span class="nm">HouseHeader</span><span class="desc">Back-link, house name, italic definition, gear button. Gear opens <code>MetaMDPanel</code>.</span></li>
+          <li><span class="nm">AdaptivePanes</span><span class="desc">Reads <code>@Environment(\.horizontalSizeClass)</code>. Compact ⇒ <code>Picker</code>-style segmented switch. Regular ⇒ <code>NavigationSplitView</code>.</span></li>
+        </ul>
+      </div>
+
+      <div class="group">
+        <div class="top"><div class="tier">List pane</div><div class="what">manual capture &amp; tending</div></div>
+        <ul class="items">
+          <li><span class="nm">TodoListPane</span><span class="desc">Three sections via <code>List</code>: open (priority sort), completed (7-day window), shelved (disclosure). Drag-to-reorder rebinds <code>priority</code>.</span></li>
+          <li><span class="nm">TodoInput</span><span class="desc"><code>TextField</code> at top. Enter inserts a <code>Todo</code> via <code>modelContext</code>; <code>source: .manual</code>.</span></li>
+          <li><span class="nm">TodoRow</span><span class="desc">Single todo. Tap to edit inline (binding to text). Long-press / swipe context: done, shelve, unshelve, delete (with confirm).</span></li>
+        </ul>
+      </div>
+
+      <div class="group">
+        <div class="top"><div class="tier">Chat pane</div><div class="what">the thinking partner</div></div>
+        <ul class="items">
+          <li><span class="nm">ChatPane</span><span class="desc">Owns the streaming task. Reads messages via <code>@Query(filter: weekID == current)</code>. Appends streaming deltas to <code>@State</code> until the assistant turn closes, then persists.</span></li>
+          <li><span class="nm">SummaryCard</span><span class="desc">Pinned at top after rollover. Open the first time the week is viewed, collapsed thereafter.</span></li>
+          <li><span class="nm">MessageBubble</span><span class="desc">Renders user or assistant. Long-press → share / copy / &ldquo;jump to origin&rdquo; for chat-born todos.</span></li>
+          <li><span class="nm">ProposeTodoCard</span><span class="desc">Renders inline inside the assistant message when a <code>propose_todo</code> tool block is parsed. <em>Add</em>, <em>Edit</em>, <em>Skip</em> as closures injected by parent.</span></li>
+          <li><span class="nm">Composer</span><span class="desc"><code>TextField</code> + send. <code>@FocusState</code> pulls keyboard up on entry.</span></li>
+        </ul>
+      </div>
+
+      <div class="group">
+        <div class="top"><div class="tier">Drawer</div><div class="what">long memory</div></div>
+        <ul class="items">
+          <li><span class="nm">MetaMDPanel</span><span class="desc">Presented as <code>.sheet</code>. A <code>TextEditor</code> bound to <code>house.metaMd</code>. Autosaves on blur or sheet dismiss.</span></li>
+        </ul>
+      </div>
+
+      <div class="group">
+        <div class="top"><div class="tier">Environment</div><div class="what">cross-cutting coordinators</div></div>
+        <ul class="items">
+          <li><span class="nm">LLMClient</span><span class="desc"><code>@Observable</code> singleton. Owns the API key (Keychain). Exposes <code>func stream(_ input: ChatInput) -&gt; AsyncStream&lt;ChatEvent&gt;</code>.</span></li>
+          <li><span class="nm">RolloverCoordinator</span><span class="desc">Pure logic. Given a house and &ldquo;now,&rdquo; returns work to do: lock prior week, generate summary, open new week. Called from <code>HouseView.task</code>.</span></li>
+          <li><span class="nm">ProposalStore</span><span class="desc">Tracks the lifecycle of pending tool-call proposals. Notifies the chat pane when a card needs rendering or dismissing.</span></li>
+        </ul>
+      </div>
+
+    </div>
+
+    <h3>What the data model looks like in Swift</h3>
+
+<pre class="code">
+<span class="label">SwiftData · /Atrium/Models/House.swift</span>
+<span class="kw">import</span> SwiftData
+
+<span class="at">@Model</span>
+<span class="kw">final class</span> <span class="ty">House</span> {
+    <span class="at">@Attribute</span>(.unique) <span class="kw">var</span> id: <span class="ty">String</span>           <span class="cm">// "corpus", "animus", …</span>
+    <span class="kw">var</span> name: <span class="ty">String</span>
+    <span class="kw">var</span> definition: <span class="ty">String</span>
+    <span class="kw">var</span> order: <span class="ty">Int</span>
+    <span class="kw">var</span> metaMd: <span class="ty">String</span> = <span class="st">""</span>
+
+    <span class="at">@Relationship</span>(deleteRule: .cascade, inverse: \<span class="ty">Todo</span>.house)
+    <span class="kw">var</span> todos: [<span class="ty">Todo</span>] = []
+
+    <span class="at">@Relationship</span>(deleteRule: .cascade, inverse: \<span class="ty">Week</span>.house)
+    <span class="kw">var</span> weeks: [<span class="ty">Week</span>] = []
+}
+
+<span class="at">@Model</span>
+<span class="kw">final class</span> <span class="ty">Todo</span> {
+    <span class="kw">var</span> id: <span class="ty">UUID</span> = <span class="ty">UUID</span>()
+    <span class="kw">var</span> house: <span class="ty">House</span>?
+    <span class="kw">var</span> text: <span class="ty">String</span>
+    <span class="kw">var</span> status: <span class="ty">TodoStatus</span>        <span class="cm">// open · done · shelved</span>
+    <span class="kw">var</span> priority: <span class="ty">Int</span>
+    <span class="kw">var</span> source: <span class="ty">TodoSource</span>        <span class="cm">// manual · chat</span>
+    <span class="kw">var</span> chatMessageID: <span class="ty">UUID</span>?
+    <span class="kw">var</span> createdAt: <span class="ty">Date</span> = .now
+    <span class="kw">var</span> completedAt: <span class="ty">Date</span>?
+}
+
+<span class="cm">// Week, Message, TodoProposal follow the same shape.</span>
+</pre>
+
+    <h3>The atrium screen, in 30 lines of SwiftUI</h3>
+
+<pre class="code">
+<span class="label">/Atrium/Screens/AtriumView.swift</span>
+<span class="kw">import</span> SwiftUI
+<span class="kw">import</span> SwiftData
+
+<span class="kw">struct</span> <span class="ty">AtriumView</span>: <span class="ty">View</span> {
+    <span class="at">@Query</span>(sort: \<span class="ty">House</span>.order) <span class="kw">var</span> houses: [<span class="ty">House</span>]
+
+    <span class="kw">var</span> body: <span class="kw">some</span> <span class="ty">View</span> {
+        <span class="ty">NavigationStack</span> {
+            <span class="ty">List</span>(houses) { house <span class="kw">in</span>
+                <span class="ty">NavigationLink</span>(value: house.id) {
+                    <span class="ty">HouseDoor</span>(house: house)
+                }
+                .listRowBackground(<span class="ty">Color</span>.paper)
+                .listRowSeparatorTint(.rule)
+            }
+            .listStyle(.plain)
+            .navigationDestination(<span class="kw">for</span>: <span class="ty">String</span>.<span class="kw">self</span>) { id <span class="kw">in</span>
+                <span class="ty">HouseView</span>(houseID: id)
+            }
+            .background(<span class="ty">Color</span>.paper.ignoresSafeArea())
+        }
+    }
+}
+
+<span class="kw">struct</span> <span class="ty">HouseDoor</span>: <span class="ty">View</span> {
+    <span class="kw">let</span> house: <span class="ty">House</span>
+    <span class="at">@Query</span> <span class="kw">private var</span> openTodos: [<span class="ty">Todo</span>]
+
+    <span class="kw">init</span>(house: <span class="ty">House</span>) {
+        <span class="kw">self</span>.house = house
+        <span class="kw">let</span> id = house.id
+        <span class="kw">_</span>openTodos = <span class="ty">Query</span>(filter: <span class="fn">#Predicate</span><<span class="ty">Todo</span>> {
+            $0.house?.id == id && $0.status == .open
+        })
+    }
+
+    <span class="kw">var</span> body: <span class="kw">some</span> <span class="ty">View</span> {
+        <span class="ty">HStack</span>(alignment: .firstTextBaseline) {
+            <span class="ty">VStack</span>(alignment: .leading, spacing: <span class="num">2</span>) {
+                <span class="ty">Text</span>(house.name).font(.garamond(.title2))
+                <span class="ty">Text</span>(house.definition)
+                    .font(.garamond(.body).italic())
+                    .foregroundStyle(.inkSoft)
+            }
+            <span class="ty">Spacer</span>()
+            <span class="ty">Text</span>(openTodos.isEmpty ? <span class="st">"—"</span> : <span class="st">"\(openTodos.count)"</span>)
+                .font(.mono(.caption))
+                .foregroundStyle(.inkFaint)
+        }
+        .padding(.vertical, <span class="num">6</span>)
+    }
+}
+</pre>
+
+  </section>
+
+  <!-- ============================================== -->
+  <!-- III — How components talk                       -->
+  <!-- ============================================== -->
+  <section>
+    <div class="section-label">III &mdash; How components talk</div>
+    <h2>Four patterns, no more</h2>
+
+    <p class="lede">SwiftUI begs for too many state-passing mechanisms. We commit to four, deliberately. Anything that doesn&rsquo;t fit becomes a smell to investigate, not an excuse to add a fifth.</p>
+
+    <div class="pattern">
+      <div class="num">A &mdash; Read</div>
+      <div class="name"><code>@Query</code> from SwiftData</div>
+      <div class="gist">Anything persistent flows from SwiftData. Views declare what they want; the framework keeps them in sync with the store. No fetching, no caching, no manual invalidation.</div>
+<pre class="code">
+<span class="at">@Query</span>(filter: <span class="fn">#Predicate</span><<span class="ty">Todo</span>> {
+    $0.house?.id == houseID && $0.status == .open
+}, sort: \.priority)
+<span class="kw">var</span> openTodos: [<span class="ty">Todo</span>]
+</pre>
+    </div>
+
+    <div class="pattern">
+      <div class="num">B &mdash; Write</div>
+      <div class="name"><code>@Environment(\.modelContext)</code> for mutations</div>
+      <div class="gist">Inserts, updates, and deletes go through the context. Views that mutate hold a context handle and call <code>.insert</code>, <code>.delete</code>, or just touch a property. SwiftData persists on the next runloop tick.</div>
+<pre class="code">
+<span class="at">@Environment</span>(\.modelContext) <span class="kw">private var</span> ctx
+
+<span class="kw">func</span> <span class="fn">addTodo</span>(_ text: <span class="ty">String</span>) {
+    <span class="kw">let</span> todo = <span class="ty">Todo</span>(text: text,
+                    house: house,
+                    status: .open,
+                    priority: <span class="fn">nextPriority</span>(),
+                    source: .manual)
+    ctx.<span class="fn">insert</span>(todo)
+}
+</pre>
+    </div>
+
+    <div class="pattern">
+      <div class="num">C &mdash; Coordinate</div>
+      <div class="name"><code>@Environment</code> for shared coordinators</div>
+      <div class="gist">Cross-cutting services &mdash; <code>LLMClient</code>, <code>RolloverCoordinator</code>, <code>ProposalStore</code> &mdash; are <code>@Observable</code> singletons injected at the root and read by any view that needs them. Not singletons in the global-state sense; just one instance, scoped to the app.</div>
+<pre class="code">
+<span class="cm">// AtriumApp.swift</span>
+<span class="kw">var</span> body: <span class="kw">some</span> <span class="ty">Scene</span> {
+    <span class="ty">WindowGroup</span> {
+        <span class="ty">AppRoot</span>()
+            .environment(<span class="ty">LLMClient</span>.shared)
+            .environment(<span class="ty">RolloverCoordinator</span>())
+            .environment(<span class="ty">ProposalStore</span>())
+    }
+    .modelContainer(<span class="kw">for</span>: [<span class="ty">House</span>.<span class="kw">self</span>, <span class="ty">Todo</span>.<span class="kw">self</span>,
+                              <span class="ty">Week</span>.<span class="kw">self</span>, <span class="ty">Message</span>.<span class="kw">self</span>,
+                              <span class="ty">TodoProposal</span>.<span class="kw">self</span>])
+}
+
+<span class="cm">// ChatPane.swift</span>
+<span class="at">@Environment</span>(<span class="ty">LLMClient</span>.<span class="kw">self</span>) <span class="kw">private var</span> llm
+<span class="at">@Environment</span>(<span class="ty">ProposalStore</span>.<span class="kw">self</span>) <span class="kw">private var</span> proposals
+</pre>
+    </div>
+
+    <div class="pattern">
+      <div class="num">D &mdash; Stream</div>
+      <div class="name"><code>AsyncStream&lt;ChatEvent&gt;</code> for the chat</div>
+      <div class="gist">The streaming chat is the one piece of state that doesn&rsquo;t belong in SwiftData mid-flight. The pane subscribes to an async sequence of <code>ChatEvent</code> values and updates <code>@State</code> as deltas arrive. When the turn closes, the assembled message is persisted.</div>
+<pre class="code">
+<span class="cm">// LLMClient.swift</span>
+<span class="kw">enum</span> <span class="ty">ChatEvent</span> {
+    <span class="kw">case</span> textDelta(<span class="ty">String</span>)
+    <span class="kw">case</span> toolCall(<span class="ty">ToolCall</span>)            <span class="cm">// → ProposalStore.register(...)</span>
+    <span class="kw">case</span> turnEnded(assembled: <span class="ty">String</span>)
+}
+
+<span class="kw">extension</span> <span class="ty">LLMClient</span> {
+    <span class="kw">func</span> <span class="fn">stream</span>(_ input: <span class="ty">ChatInput</span>) -> <span class="ty">AsyncStream</span><<span class="ty">ChatEvent</span>> {
+        <span class="ty">AsyncStream</span> { continuation <span class="kw">in</span>
+            <span class="ty">Task</span> {
+                <span class="kw">for try await</span> chunk <span class="kw">in</span> <span class="kw">try await</span> <span class="fn">sse</span>(input) {
+                    continuation.<span class="fn">yield</span>(<span class="fn">parse</span>(chunk))
+                }
+                continuation.<span class="fn">finish</span>()
+            }
+        }
+    }
+}
+
+<span class="cm">// ChatPane.swift</span>
+.<span class="fn">task</span>(id: pendingPrompt) {
+    <span class="kw">guard let</span> input = pendingPrompt <span class="kw">else</span> { <span class="kw">return</span> }
+    <span class="kw">for await</span> event <span class="kw">in</span> llm.<span class="fn">stream</span>(input) {
+        <span class="kw">switch</span> event {
+        <span class="kw">case</span> .textDelta(<span class="kw">let</span> s): streaming += s
+        <span class="kw">case</span> .toolCall(<span class="kw">let</span> t): proposals.<span class="fn">register</span>(t)
+        <span class="kw">case</span> .turnEnded(<span class="kw">let</span> full): <span class="fn">persist</span>(full)
+        }
+    }
+}
+</pre>
+    </div>
+
+    <h3>The walk of one user message</h3>
+
+<pre class="diagram">
+   user taps send                          <span class="dim">·composer</span>
+        │
+        ▼
+   <span class="accent">ChatPane.send()</span>                       <span class="dim">·builds ChatInput from</span>
+        │                                  <span class="dim">  @Query messages, open todos,</span>
+        │                                  <span class="dim">  house.metaMd, last summary</span>
+        ▼
+   <span class="accent">LLMClient.stream(input)</span>  ──HTTPS SSE──▶ <span class="name">api.anthropic.com</span>
+        │
+        ▼
+   <span class="accent">AsyncStream&lt;ChatEvent&gt;</span>                <span class="dim">·deltas arrive</span>
+        │
+        ├── .textDelta ─────────────▶ ChatPane @State (live)
+        ├── .toolCall  ─────────────▶ <span class="accent">ProposalStore.register</span>
+        │                                    │
+        │                                    ▼
+        │                            <span class="name">ProposeTodoCard</span>          <span class="dim">·inline in bubble</span>
+        │                                    │
+        │                                    ▼ user taps Add
+        │                            <span class="accent">modelContext.insert(Todo)</span>
+        │
+        └── .turnEnded ─────────────▶ persist Message via modelContext
+                                          │
+                                          ▼
+                                     @Query updates → list re-renders
+</pre>
+
+    <div class="callout">
+      <div class="heading">No third state</div>
+      Nothing lives in some-other-store-besides-SwiftData. The streaming buffer is <code>@State</code>; everything else is SwiftData. This is what makes CloudKit sync &ldquo;just work&rdquo; later &mdash; there is no parallel cache to reconcile.
+    </div>
+  </section>
+
+  <!-- ============================================== -->
+  <!-- IV — Chat & context system + provocations       -->
+  <!-- ============================================== -->
+  <section>
+    <div class="section-label">IV &mdash; Memory</div>
+    <h2>The chat, the context, and what they remember</h2>
+
+    <p class="lede">The original brief specifies four moving parts to memory: <code>meta_md</code>, the in-progress weekly conversation, the previous week&rsquo;s summary, and the open-todo list. These are concatenated into the system prompt each turn. It is a reasonable starting point. It is also the part of the design most likely to need a second pass.</p>
+
+    <h3>What is currently in the prompt</h3>
+
+<pre class="diagram">
+<span class="accent">┌─ system ─────────────────────────────────────────────────┐</span>
+<span class="accent">│</span>  role instruction          <span class="dim">— static, per-house</span>          <span class="accent">│</span>
+<span class="accent">│</span>  house.definition          <span class="dim">— verbatim, per-house static</span> <span class="accent">│</span>
+<span class="accent">│</span>  house.metaMd              <span class="dim">— user-edited, slow</span>          <span class="accent">│</span>
+<span class="accent">│</span>  lastWeek.summaryMd        <span class="dim">— set once per rollover</span>      <span class="accent">│</span>
+<span class="accent">│</span>  openTodos                 <span class="dim">— volatile, current state</span>    <span class="accent">│</span>
+<span class="accent">└──────────────────────────────────────────────────────────┘</span>
+<span class="accent">┌─ messages ──────────────────────────────────────────────┐</span>
+<span class="accent">│</span>  week-scoped transcript (this week only)                <span class="accent">│</span>
+<span class="accent">└──────────────────────────────────────────────────────────┘</span>
+</pre>
+
+    <h3>What this design does well</h3>
+    <ul>
+      <li><strong>It is cacheable.</strong> The first four blocks change rarely; Anthropic prompt caching covers most of the per-turn cost.</li>
+      <li><strong>It is bounded.</strong> No matter how long the app runs, the prompt for any single turn stays within a few thousand tokens.</li>
+      <li><strong>It is legible to the user.</strong> Everything the model knows is something the user typed, or something the model wrote last week (which the user can read).</li>
+    </ul>
+
+    <h3>Where it is thin</h3>
+    <ul>
+      <li><strong>Memory only one week deep.</strong> Week 27 sees only week 26&rsquo;s summary &mdash; weeks 1&ndash;25 are lost to the active prompt. The first conversation about a friend is invisible by the time the friendship has changed.</li>
+      <li><strong><code>meta_md</code> is entirely user-curated.</strong> The user must remember to write down what should persist. Anything they forget to record never enters long memory.</li>
+      <li><strong>No retrieval.</strong> &ldquo;Remember that thing I said in spring?&rdquo; cannot be honored.</li>
+      <li><strong>No cross-house bridges.</strong> The thing said in Vinculum that obviously belongs in Animus has nowhere to land.</li>
+      <li><strong>No voice model.</strong> The user&rsquo;s register has to be inferred turn by turn, from scratch, every conversation.</li>
+      <li><strong>No forgetting protocol.</strong> Raw messages accumulate forever. After three years, the store is large and most of it is dead weight.</li>
+    </ul>
+
+    <h3>Provocations</h3>
+    <p>Seven directions, each posed as a what-if. None of them are commitments. They are listed in roughly the order I&rsquo;d want to consider them.</p>
+
+    <div class="provocations">
+
+      <div class="prov">
+        <div class="num">Provocation 01</div>
+        <div class="name">A pyramid of summaries, not a single summary</div>
+        <div class="what">
+          <span class="lbl">What if</span>
+          The system prompt carries a pyramid instead of last-week-only: <em>this week</em> (live transcript), <em>last week</em> (verbatim summary), <em>last month</em> (a digest of the four weekly summaries), <em>last quarter</em> (a digest of the three monthly digests), <em>last year</em> (a single annual paragraph). Each level is generated lazily from the level below.
+        </div>
+        <div class="tradeoff">Trade-off: more cost on rollover and on month/quarter/year boundaries; modestly larger prompt; risk that compression loses the texture that makes Atrium feel known. Mitigation: the user can read and edit any layer.</div>
+      </div>
+
+      <div class="prov">
+        <div class="num">Provocation 02</div>
+        <div class="name">Let the partner propose meta_md edits</div>
+        <div class="what">
+          <span class="lbl">What if</span>
+          The same pattern as <code>propose_todo</code>: when the user reveals a long-lived fact (&ldquo;my mother&rsquo;s name is Helen,&rdquo; &ldquo;I&rsquo;m training for a marathon in October&rdquo;), the model calls <code>propose_meta_edit</code>. An inline card shows the proposed addition with a diff view; user accepts, edits, or skips. <code>meta_md</code> becomes a document co-authored with the partner.
+        </div>
+        <div class="tradeoff">Trade-off: meaningful surface complexity. The diff renderer is real UI work. But it solves the largest hidden failure mode &mdash; the user not remembering what to remember.</div>
+      </div>
+
+      <div class="prov">
+        <div class="num">Provocation 03</div>
+        <div class="name">Embed everything, retrieve on demand</div>
+        <div class="what">
+          <span class="lbl">What if</span>
+          Every message and every summary is embedded (on-device with an Apple Foundation Model, or via the Anthropic embeddings API). At chat time, the most-relevant <em>k</em> chunks from prior weeks are pulled into the system prompt under a &ldquo;from earlier&rdquo; heading. The model gets long memory without us widening every prompt.
+        </div>
+        <div class="tradeoff">Trade-off: an embedding store on device (manageable with SwiftData and a vector type, or a tiny SQLite extension). Retrieval can surface stale or out-of-context fragments; needs a quality gate. Bigger question: this is the moment Atrium gains a retrieval system, which is a step away from &ldquo;a tool that holds rooms with fidelity.&rdquo;</div>
+      </div>
+
+      <div class="prov">
+        <div class="num">Provocation 04</div>
+        <div class="name">A voice profile per user, not per house</div>
+        <div class="what">
+          <span class="lbl">What if</span>
+          A single short markdown document &mdash; <em>how the user speaks</em> &mdash; is maintained across all houses. Two paragraphs at most: register, idioms, where they get terse, where they elaborate. Curated by the user; can also be proposed by the model from observed patterns. Lives in every system prompt, alongside the per-house <code>meta_md</code>.
+        </div>
+        <div class="tradeoff">Trade-off: small. The risk is that the model over-mirrors and starts to feel uncanny. Mitigation: keep the voice profile short; resist letting it accrete.</div>
+      </div>
+
+      <div class="prov">
+        <div class="num">Provocation 05</div>
+        <div class="name">Explicit cross-house bridges</div>
+        <div class="what">
+          <span class="lbl">What if</span>
+          A user (or the model) can mark a single message as &ldquo;also relevant to <em>X</em>.&rdquo; The marked passage becomes visible to the system prompt of the other house, under a small &ldquo;from <em>Vinculum</em>&rdquo; header. Bridges are explicit, rare, and survive the week boundary by entering the target house&rsquo;s <code>meta_md</code> or summary.
+        </div>
+        <div class="tradeoff">Trade-off: a new UI affordance the user has to learn. But it honors a real phenomenology &mdash; the people in your life are not separable from your inner state &mdash; without merging the rooms.</div>
+      </div>
+
+      <div class="prov">
+        <div class="num">Provocation 06</div>
+        <div class="name">The forgetting protocol</div>
+        <div class="what">
+          <span class="lbl">What if</span>
+          Raw messages older than six months are archived &mdash; available on request, retrieval, or by opening a locked week, but not pulled into the system prompt by default. After two years, raw messages can be deleted entirely, leaving only the summary pyramid. Forgetting is opt-out and visible, like ageing.
+        </div>
+        <div class="tradeoff">Trade-off: a destructive operation requires real care. But the alternative &mdash; accreting forever &mdash; is its own kind of harm. The forgetting is itself a feature of how memory works.</div>
+      </div>
+
+      <div class="prov">
+        <div class="num">Provocation 07</div>
+        <div class="name">Voice in, transcript out</div>
+        <div class="what">
+          <span class="lbl">What if</span>
+          The composer offers press-and-hold dictation using on-device Whisper (Apple&rsquo;s <code>SFSpeechRecognizer</code> or a bundled model). Particularly natural in <em>Animus</em>, <em>Vinculum</em>, <em>Naturum</em> &mdash; rooms where typing already feels wrong. Output is editable text; nothing is sent until the user commits.
+        </div>
+        <div class="tradeoff">Trade-off: deferred from v1 in the brief. iOS makes it cheap; the real cost is the temptation to add a transcription review step that breaks the contemplative flow. Keep it spartan.</div>
+      </div>
+
+    </div>
+
+    <div class="callout">
+      <div class="heading">The decision the provocations want from you</div>
+      Is Atrium a tool whose memory is <em>declarative</em> (the user types what they want remembered) or <em>emergent</em> (the system observes and proposes)? The brief assumes declarative; Provocations 01, 02, 03, 04, 06 nudge toward emergent. There is no neutral answer &mdash; even the current design takes a position. This is the discussion the next process page might want to externalize.
+    </div>
+  </section>
+
+  <!-- ============================================== -->
+  <!-- V — Build order                                  -->
+  <!-- ============================================== -->
+  <section>
+    <div class="section-label">V &mdash; Build order</div>
+    <h2>Twelve steps to a TestFlight build</h2>
+
+    <p class="lede">Same spirit as the original brief: each step is usable on its own. The MVP of the MVP is steps 1&ndash;5 &mdash; a working list-only Atrium on real data, running on the device, before any LLM call has been wired.</p>
+
+    <ol class="steps">
+
+      <li>
+        <span class="stage">Foundation</span>
+        <span class="what">Xcode project, SwiftData schema, twelve houses seeded</span>
+        <div class="why">App target, package layout, model definitions, first-launch seed. App launches to an empty placeholder; the store has the twelve <code>House</code> rows in order.</div>
+      </li>
+
+      <li>
+        <span class="stage">Home</span>
+        <span class="what">AtriumView — the list of doors</span>
+        <div class="why">EB Garamond bundled and applied. <code>@Query(sort: \.order)</code> drives the list. Open-todo counts are stubbed to em-dashes for now. The home screen is real.</div>
+      </li>
+
+      <li class="milestone">
+        <span class="stage">Navigation</span>
+        <span class="what">HouseView shell pushed via NavigationStack</span>
+        <div class="why">Tap a door, land in a house with header, definition, and two empty panes. Back works. <em>Milestone: the app has a shape</em>.</div>
+      </li>
+
+      <li>
+        <span class="stage">Doing</span>
+        <span class="what">TodoListPane — full CRUD</span>
+        <div class="why">Add, edit, complete, uncomplete, shelve, unshelve, delete, drag-reorder. Three sections, dotted divider. Counts on the home screen become live. <code>source: .manual</code>.</div>
+      </li>
+
+      <li class="milestone">
+        <span class="stage">Real use</span>
+        <span class="what">Daily use — list-only — for one full week</span>
+        <div class="why">Before adding the LLM, live with it. This is the validation step the original brief calls <em>the MVP of the MVP</em>. Findings from this week become the spec for everything that follows. <em>Milestone: Atrium is already useful</em>.</div>
+      </li>
+
+      <li>
+        <span class="stage">LLM transport</span>
+        <span class="what">LLMClient — URLSession + SSE, console-tested</span>
+        <div class="why">Anthropic API key entry screen (Keychain). A <code>stream(_:)</code> method returning <code>AsyncStream&lt;ChatEvent&gt;</code>. Verified against the API with a hard-coded prompt in a debug view.</div>
+      </li>
+
+      <li>
+        <span class="stage">Conversation</span>
+        <span class="what">ChatPane — plain chat, no tools, no week boundary</span>
+        <div class="why">Compose, stream, persist. System prompt built from definition + <code>meta_md</code> (empty for now) + open todos. All transcripts are &ldquo;the only week.&rdquo; The partner is live.</div>
+      </li>
+
+      <li>
+        <span class="stage">Capture from chat</span>
+        <span class="what">propose_todo tool + inline ProposeTodoCard</span>
+        <div class="why">Tool definition in the API call. <code>ProposalStore</code> registers incoming tool calls; <code>ProposeTodoCard</code> renders inline with Add / Edit / Skip. Created todos carry <code>source: .chat</code> and <code>chatMessageID</code>.</div>
+      </li>
+
+      <li>
+        <span class="stage">Long memory</span>
+        <span class="what">MetaMDPanel — slide-up sheet, markdown editor</span>
+        <div class="why">Gear icon in header opens the sheet. Plain <code>TextEditor</code> bound to <code>house.metaMd</code>. Autosaves. <code>meta_md</code> enters every subsequent system prompt.</div>
+      </li>
+
+      <li>
+        <span class="stage">The week</span>
+        <span class="what">Week boundary + lazy rollover + summary generation</span>
+        <div class="why">On <code>HouseView.task</code>, <code>RolloverCoordinator</code> checks if the active week has passed Sunday 23:59. If yes: lock, summarize (one Opus call), open new week. <code>SummaryCard</code> appears at top.</div>
+      </li>
+
+      <li class="milestone">
+        <span class="stage">Sync</span>
+        <span class="what">CloudKit private database turned on</span>
+        <div class="why">One flag in the SwiftData container configuration. Test across phone and iPad. Validate that conflict resolution behaves on simultaneous edits to <code>meta_md</code>. <em>Milestone: Atrium is yours across your devices, end-to-end encrypted</em>.</div>
+      </li>
+
+      <li class="milestone">
+        <span class="stage">Refinement</span>
+        <span class="what">Aesthetic pass + TestFlight</span>
+        <div class="why">Typography, spacing, motion (minimal), haptics on key actions, dark mode tuning. Ship to TestFlight, even if the only tester is you. <em>Milestone: Atrium is on a phone, in pockets, in use</em>.</div>
+      </li>
+
+    </ol>
+
+    <h3>Out of scope for the iOS v1 (revised)</h3>
+    <ul>
+      <li>The seven memory provocations above &mdash; each is its own consideration after step 12.</li>
+      <li>Web client of any kind. Defer until the iOS app has run for two months.</li>
+      <li>Voice input. Deferred per the brief; revisit after step 12 if it feels under-served.</li>
+      <li>Apple Watch / iPad-specific UI beyond the responsive split. iPad gets the split for free; nothing more.</li>
+      <li>Widgets, Shortcuts, App Intents. Defer.</li>
+      <li>Notifications. The brief refuses them; the iOS pivot does not change that.</li>
+    </ul>
+  </section>
+
+  <hr class="rule">
+
+  <p style="text-align: center; font-style: italic; color: var(--ink-soft); margin: 0;">
+    SwiftUI on top. SwiftData beneath. An Anthropic stream feeding each room.<br>
+    And one open question hanging over all of it &mdash; what does it mean for a house to remember?
+  </p>
+
+  <footer class="colophon">
+    <span>Atrium &mdash; Process 03</span>
+    <span>Draft &middot; 2026 · 05</span>
+  </footer>
+
+</div>
+
+</body>
+</html>
