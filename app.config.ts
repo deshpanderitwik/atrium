@@ -1,12 +1,13 @@
 import { ExpoConfig } from "expo/config";
 
-// EAS project id is injected by `eas build:configure` / `eas init`.
-// Until then it is read from the environment so the config stays valid.
-const EAS_PROJECT_ID = process.env.EAS_PROJECT_ID ?? "";
+// EAS project, created via `eas init` under the ritwikdesh account.
+const EAS_PROJECT_ID =
+  process.env.EAS_PROJECT_ID ?? "442ada72-7308-45a2-94e6-a853f52d1e61";
 
 const config: ExpoConfig = {
   name: "Atrium",
   slug: "atrium",
+  owner: "ritwikdesh",
   scheme: "atrium",
   version: "0.1.0",
   orientation: "portrait",
