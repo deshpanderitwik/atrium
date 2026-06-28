@@ -10,7 +10,7 @@ xcuserdata/
 *.moved-aside
 
 # xcodegen — project file is generated from project.yml
-Atrium/Atrium.xcodeproj/
+archive/ios-swiftui/Atrium.xcodeproj/
 
 # Swift Package Manager
 .build/
@@ -24,3 +24,15 @@ Package.resolved
 
 # Personal / local overrides
 *.local
+
+# Node / Expo (JavaScript front end)
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+npm-debug.*
+*.tsbuildinfo
+.env*.local
+ios/
+android/

@@ -41,13 +41,17 @@ The app's job is to hold the rooms with fidelity.
 
 ## Status
 
-Built and running on a personal device. Not yet on the App Store.
+Re-platformed from native SwiftUI onto **Expo / React Native** so the front end
+is JavaScript and can be updated **over-the-air** — edits ship to the phone via
+`eas update` without an App Store round-trip. Distributed through **TestFlight**.
+The original SwiftUI implementation is preserved under
+[`archive/ios-swiftui/`](./archive/ios-swiftui/).
 
 ### What's built
 
-- **Atrium home screen** — live date and time at the top (24h, lowercase
-  italic), a strip of starred items pulled from across the twelve houses,
-  then the twelve doors with open-todo counts
+- **Atrium home screen** — a meditation line at the top, a strip of starred
+  items pulled from across the twelve houses, then the twelve doors with
+  open-todo counts
 - **House view** — header with name and definition, swipe-from-left-edge back
   to the atrium
 - **Todos** with full CRUD
@@ -106,50 +110,77 @@ itself.
 These render as static HTML. Open the `index.html` in a browser, or serve
 locally with `python3 -m http.server` from inside `process/`.
 
-## Build & run
+## Develop
 
-### Requirements
-
-- macOS · Xcode 15+
-- Apple Developer team (free personal team is sufficient for device install)
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen) — `brew install xcodegen`
-
-### Setup
+No Mac required — EAS builds in the cloud. Locally you just need Node and the
+Expo CLI for fast iteration.
 
 ```bash
-cd Atrium
-
-# Edit project.yml — change two lines to match your account:
-#   DEVELOPMENT_TEAM:           your 10-char team ID (Xcode > Settings >
-#                               Accounts > your Apple ID > team name)
-#   PRODUCT_BUNDLE_IDENTIFIER:  any unique reverse-DNS string you own
-#                               e.g. com.<yourname>.atrium
-
-xcodegen generate
-open Atrium.xcodeproj
+npm install
+npx expo start        # press i for the iOS Simulator, or scan with a dev build
 ```
 
-Then in Xcode, select your iPhone in the device dropdown and hit `⌘R`.
+`npm run typecheck` runs `tsc`; `npm run doctor` runs `expo-doctor`.
 
-On first install to a device, iOS will show an "Untrusted Developer" prompt
-the first time you tap the app icon. Fix it once in
-**Settings → General → VPN & Device Management → trust your developer
-profile**, then tap the icon again.
+## Ship to TestFlight (one-time setup)
+
+These steps need your paid Apple Developer account but no Mac.
+
+```bash
+npm i -g eas-cli
+eas login                                  # create a free expo.dev account first
+eas init                                   # links the project, fills the EAS project id
+eas build --platform ios --profile production   # cloud build; EAS manages signing
+eas submit --platform ios                  # → App Store Connect → TestFlight
+```
+
+Accept the build in TestFlight on your phone and install. The bundle id is
+`com.ritwikdeshpande.atrium` (change it in `app.config.ts` if needed).
+
+## Iterate over the air (the phone edit loop)
+
+Once a TestFlight build is installed, JS/asset changes ship without a rebuild:
+
+```bash
+eas update --branch production --message "tweak the tagline"
+```
+
+The app checks for updates on launch and whenever it returns to the foreground
+(see `src/lib/useOtaUpdates.ts`), so the change lands on the next open.
+
+This is automated in CI: pushing JS changes to `main` (or the working branch)
+triggers [`.github/workflows/ota.yml`](./.github/workflows/ota.yml), which runs
+`eas update` for you. Add an Expo access token as the `EXPO_TOKEN` repo secret to
+enable it. That closes the loop — edit from anywhere (including the phone, via
+the GitHub web UI or Claude Code), commit, and the update reaches the device.
+
+**Native changes** (new native dependency, Expo SDK bump, icon, permissions)
+can't ship over the air — they need a fresh build. The `runtimeVersion`
+fingerprint policy enforces this, and
+[`.github/workflows/build.yml`](./.github/workflows/build.yml) cuts a new
+TestFlight binary on a `v*` tag or manual dispatch.
 
 ## Stack
 
-- **SwiftUI** · iOS 17+
-- **SwiftData** on-device persistence
-- **EB Garamond** (bundled, OFL-licensed) for all serif type; system
-  monospaced for structural labels
-- **Inject** (development-only) — wired up but a no-op on device; the
-  scaffolding stays so we can use it cleanly when iterating in the Simulator
-- No external runtime dependencies
+- **Expo / React Native** · TypeScript · **expo-router** file-based navigation
+- **expo-updates** (EAS Update) for over-the-air JS delivery
+- **expo-sqlite** for local persistence (replaces SwiftData) — see `src/db/`
+- **expo-haptics**, **react-native-gesture-handler** (swipe actions),
+  **react-native-draggable-flatlist** (drag-to-reorder)
+- **EB Garamond** (bundled in `assets/fonts/`, OFL-licensed) loaded via
+  **expo-font**; system monospaced for structural labels
+
+### Layout
+
+- `app/` — routes (`index.tsx` is the atrium; `house/[id].tsx` is a house)
+- `src/theme.ts`, `src/houses.ts` — palette/typography and the twelve houses
+- `src/db/` — SQLite store, types, and the grouping/ordering selectors
+- `src/components/` — the ported UI pieces
+- `archive/ios-swiftui/` — the original SwiftUI app, kept intact
 
 ## License
 
 Code: [MIT](./LICENSE).
 
-EB Garamond, bundled in `Atrium/Resources/Fonts/`, is licensed under the
-SIL Open Font License 1.1. The full OFL text is in
-[Atrium/Resources/Fonts/OFL.txt](./Atrium/Resources/Fonts/OFL.txt).
+EB Garamond, bundled in `assets/fonts/`, is licensed under the SIL Open Font
+License 1.1. The full OFL text is in [assets/fonts/OFL.txt](./assets/fonts/OFL.txt).
