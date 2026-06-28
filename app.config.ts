@@ -20,9 +20,10 @@ const config: ExpoConfig = {
   ios: {
     bundleIdentifier: "com.ritwikdeshpande.atrium",
     supportsTablet: false,
-    buildNumber: "1",
     infoPlist: {
       UIUserInterfaceStyle: "Dark",
+      // App uses only standard HTTPS (exempt) — no custom/non-exempt crypto.
+      ITSAppUsesNonExemptEncryption: false,
     },
   },
   assetBundlePatterns: ["**/*"],
