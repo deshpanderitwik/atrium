@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
+import { Feather } from "@expo/vector-icons";
 import { colors, garamond } from "@/theme";
 import { haptics } from "@/lib/haptics";
 import { Priority, Todo, isDone } from "@/db/types";
@@ -111,7 +112,7 @@ export function TodoRow({
           marginLeft: 4, // 4px gap between the delete button and the card
         }}
       >
-        <Text style={{ color: "#fff", fontSize: 16 }}>delete</Text>
+        <Feather name="trash-2" size={18} color="#fff" />
       </Pressable>
     </View>
   );
