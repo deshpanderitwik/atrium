@@ -5,49 +5,50 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, garamond, mono } from "@/theme";
 import { houseById } from "@/houses";
 import { haptics } from "@/lib/haptics";
+import { formatDuration } from "@/lib/time";
 import { useTodos } from "@/db/store";
 
-const pad = (n: number) => String(n).padStart(2, "0");
-const format = (secs: number) => {
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  const s = secs % 60;
-  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
-};
-
-// The "do it now" view — long-press a task to zoom in here, run a timer while
-// you work, then mark it complete.
+// The "do it now" view — double-tap a task to zoom in here, run a timer while
+// you work, then mark it complete. Timer state is persisted on the todo, so it
+// survives leaving the screen.
 export default function Focus() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { todos, toggleDone } = useTodos();
+  const { todos, toggleDone, focusResume, focusPause } = useTodos();
 
   const todo = todos.find((t) => t.id === id);
+  const running = todo?.focusRunningSince != null;
 
-  const [elapsed, setElapsed] = useState(0); // seconds
-  const [running, setRunning] = useState(false);
-
+  // Tick once a second while running so the displayed time updates.
+  const [, force] = useState(0);
   useEffect(() => {
     if (!running) return;
-    const handle = setInterval(() => setElapsed((e) => e + 1), 1000);
+    const handle = setInterval(() => force((x) => x + 1), 1000);
     return () => clearInterval(handle);
   }, [running]);
 
   if (!todo) return null;
   const house = houseById(todo.houseID);
 
-  const started = elapsed > 0 || running;
-  const timerLabel = !started ? "begin" : running ? "pause" : "resume";
+  const elapsed =
+    todo.focusAccumSeconds +
+    (todo.focusRunningSince != null
+      ? (Date.now() - todo.focusRunningSince) / 1000
+      : 0);
+
+  const begun = todo.focusStartedAt != null;
+  const timerLabel = running ? "pause" : begun ? "resume" : "begin";
 
   const toggleTimer = () => {
     haptics.light();
-    setRunning((r) => !r);
+    if (running) focusPause(todo.id);
+    else focusResume(todo.id);
   };
 
   const complete = () => {
     haptics.success();
-    toggleDone(todo.id);
+    toggleDone(todo.id); // finalizes any running time, marks done
     router.back();
   };
 
@@ -78,7 +79,7 @@ export default function Focus() {
             color: colors.ink,
             textAlign: "center",
             lineHeight: 38,
-            marginBottom: 56,
+            marginBottom: 48,
           }}
         >
           {todo.text}
@@ -91,10 +92,16 @@ export default function Focus() {
             fontSize: 60,
             letterSpacing: 4,
             color: running ? colors.ink : colors.inkSoft,
-            marginBottom: 48,
+            marginBottom: 12,
           }}
         >
-          {format(elapsed)}
+          {formatDuration(elapsed)}
+        </Text>
+
+        <Text style={{ ...mono(11, 2), color: colors.inkFaint, marginBottom: 36, minHeight: 14 }}>
+          {todo.focusBreaks > 0
+            ? `${todo.focusBreaks} ${todo.focusBreaks === 1 ? "break" : "breaks"}`
+            : ""}
         </Text>
 
         <Pressable

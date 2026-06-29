@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { Feather } from "@expo/vector-icons";
-import { colors, garamond } from "@/theme";
+import { colors, garamond, mono } from "@/theme";
 import { haptics } from "@/lib/haptics";
+import { formatDuration } from "@/lib/time";
 import { Priority, Todo, isDone } from "@/db/types";
 import { TodoCheckbox } from "./TodoCheckbox";
 import { PriorityChip } from "./PriorityChip";
@@ -226,6 +227,18 @@ export function TodoRow({
                 priority={todo.priority as Priority}
                 onChange={onSetPriority}
               />
+            </View>
+          ) : todo.focusAccumSeconds > 0 ? (
+            // Completed tasks that were timed show how long they took + breaks.
+            <View style={{ marginLeft: 8, alignSelf: "center", alignItems: "flex-end" }}>
+              <Text style={{ ...mono(11, 1), color: colors.inkSoft }}>
+                {formatDuration(todo.focusAccumSeconds)}
+              </Text>
+              {todo.focusBreaks > 0 ? (
+                <Text style={{ ...mono(9, 0.5), color: colors.inkFaint, marginTop: 2 }}>
+                  {todo.focusBreaks} {todo.focusBreaks === 1 ? "break" : "breaks"}
+                </Text>
+              ) : null}
             </View>
           ) : null}
         </View>

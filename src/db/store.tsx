@@ -35,9 +35,27 @@ async function getDb() {
           statusRaw INTEGER NOT NULL,
           starred INTEGER NOT NULL,
           createdAt INTEGER NOT NULL,
-          completedAt INTEGER
+          completedAt INTEGER,
+          focusStartedAt INTEGER,
+          focusRunningSince INTEGER,
+          focusAccumSeconds REAL NOT NULL DEFAULT 0,
+          focusBreaks INTEGER NOT NULL DEFAULT 0
         );
       `);
+      // Migrate older installs that predate the focus-timer columns.
+      const info = await db.getAllAsync<{ name: string }>("PRAGMA table_info(todos)");
+      const have = new Set(info.map((c) => c.name));
+      const newCols: [string, string][] = [
+        ["focusStartedAt", "INTEGER"],
+        ["focusRunningSince", "INTEGER"],
+        ["focusAccumSeconds", "REAL NOT NULL DEFAULT 0"],
+        ["focusBreaks", "INTEGER NOT NULL DEFAULT 0"],
+      ];
+      for (const [name, def] of newCols) {
+        if (!have.has(name)) {
+          await db.execAsync(`ALTER TABLE todos ADD COLUMN ${name} ${def}`);
+        }
+      }
       return db;
     })();
   }
@@ -62,6 +80,8 @@ type Store = {
   toggleStar: (id: string) => Promise<void>;
   setPriority: (id: string, priority: Priority) => Promise<void>;
   deleteTodo: (id: string) => Promise<void>;
+  focusResume: (id: string) => Promise<void>;
+  focusPause: (id: string) => Promise<void>;
   reorderWithin: (
     houseID: string,
     priority: number,
@@ -130,10 +150,13 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
       const t = await db.getFirstAsync<Todo>("SELECT * FROM todos WHERE id = ?", [id]);
       if (!t) return;
       if (t.statusRaw === 0) {
-        // Marking done also unstars, mirroring the original.
+        // Marking done unstars and finalizes any running focus timer so its
+        // elapsed time is captured in the totals.
+        const running =
+          t.focusRunningSince != null ? (Date.now() - t.focusRunningSince) / 1000 : 0;
         await db.runAsync(
-          "UPDATE todos SET statusRaw = 1, completedAt = ?, starred = 0 WHERE id = ?",
-          [Date.now(), id],
+          "UPDATE todos SET statusRaw = 1, completedAt = ?, starred = 0, focusAccumSeconds = focusAccumSeconds + ?, focusRunningSince = NULL WHERE id = ?",
+          [Date.now(), running, id],
         );
       } else {
         await db.runAsync(
@@ -141,6 +164,38 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
           [id],
         );
       }
+      await refresh();
+    },
+    [refresh],
+  );
+
+  // --- Focus-timer controls (persisted so they survive leaving the screen) ---
+  const focusResume = useCallback(
+    async (id: string) => {
+      const db = await getDb();
+      const t = await db.getFirstAsync<Todo>("SELECT * FROM todos WHERE id = ?", [id]);
+      if (!t || t.focusRunningSince != null) return;
+      const now = Date.now();
+      await db.runAsync(
+        "UPDATE todos SET focusRunningSince = ?, focusStartedAt = COALESCE(focusStartedAt, ?) WHERE id = ?",
+        [now, now, id],
+      );
+      await refresh();
+    },
+    [refresh],
+  );
+
+  const focusPause = useCallback(
+    async (id: string) => {
+      const db = await getDb();
+      const t = await db.getFirstAsync<Todo>("SELECT * FROM todos WHERE id = ?", [id]);
+      if (!t || t.focusRunningSince == null) return;
+      const add = (Date.now() - t.focusRunningSince) / 1000;
+      // Each pause accumulates elapsed time and counts as a break.
+      await db.runAsync(
+        "UPDATE todos SET focusAccumSeconds = focusAccumSeconds + ?, focusRunningSince = NULL, focusBreaks = focusBreaks + 1 WHERE id = ?",
+        [add, id],
+      );
       await refresh();
     },
     [refresh],
@@ -215,6 +270,8 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
       toggleStar,
       setPriority,
       deleteTodo,
+      focusResume,
+      focusPause,
       reorderWithin,
     }),
     [
@@ -226,6 +283,8 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
       toggleStar,
       setPriority,
       deleteTodo,
+      focusResume,
+      focusPause,
       reorderWithin,
     ],
   );

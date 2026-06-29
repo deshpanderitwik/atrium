@@ -17,6 +17,11 @@ export type Todo = {
   starred: number; // 0 | 1
   createdAt: number;
   completedAt: number | null;
+  // Focus-timer metrics.
+  focusStartedAt: number | null; // when the task was first begun
+  focusRunningSince: number | null; // timestamp the current run started (null if paused)
+  focusAccumSeconds: number; // total active seconds worked
+  focusBreaks: number; // number of pauses
 };
 
 export const isDone = (t: Todo) => t.statusRaw === 1;
