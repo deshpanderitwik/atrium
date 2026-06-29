@@ -84,6 +84,7 @@ export function TodoRow({
               borderRadius: 10,
               justifyContent: "center",
               paddingHorizontal: 24,
+              marginRight: 4, // 4px gap between the star button and the card
             }}
           >
             <Text style={{ color: "#fff", fontSize: 18 }}>★</Text>
@@ -107,6 +108,7 @@ export function TodoRow({
           justifyContent: "center",
           alignItems: "flex-end",
           paddingHorizontal: 24,
+          marginLeft: 4, // 4px gap between the delete button and the card
         }}
       >
         <Text style={{ color: "#fff", fontSize: 16 }}>delete</Text>
