@@ -129,10 +129,14 @@ export function TodoRow({
               onBlur={commit}
               style={{
                 ...garamond.regular(19),
+                // match the display Text metrics exactly so editing doesn't shift
+                lineHeight: 25,
                 color: colors.ink,
                 flex: 1,
-                paddingRight: 4,
                 padding: 0,
+                margin: 0,
+                paddingRight: 4,
+                textAlignVertical: "top",
               }}
             />
           ) : (
