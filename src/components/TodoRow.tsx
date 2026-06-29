@@ -124,6 +124,7 @@ export function TodoRow({
             />
           ) : (
             <Pressable
+              focusable={false}
               style={{ flex: 1, paddingRight: 4 }}
               onPress={() => {
                 if (!done) {

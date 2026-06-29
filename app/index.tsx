@@ -43,7 +43,7 @@ export default function Atrium() {
       <StarredStrip />
 
       {HOUSES.map((house) => (
-        <Pressable key={house.id} onPress={() => router.push(`/house/${house.id}`)}>
+        <Pressable key={house.id} focusable={false} onPress={() => router.push(`/house/${house.id}`)}>
           <HouseDoor house={house} openCount={openCountForHouse(todos, house.id)} />
         </Pressable>
       ))}
