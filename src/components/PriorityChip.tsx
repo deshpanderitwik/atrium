@@ -33,9 +33,20 @@ export function PriorityChip({
             borderRadius: 3,
             paddingHorizontal: 8,
             paddingVertical: 4,
+            minWidth: 34,
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          <Text style={{ ...mono(12, 1.4), color: colors.inkFaint }}>
+          <Text
+            style={{
+              ...mono(12, 1.4),
+              color: colors.inkFaint,
+              textAlign: "center",
+              // offset the trailing letter-spacing so the glyphs sit centered
+              paddingLeft: 1.4,
+            }}
+          >
             {priorityLabel(priority)}
           </Text>
         </View>
