@@ -63,7 +63,7 @@ export default function HouseScreen() {
     <TodoRow
       todo={item}
       drag={drag}
-      onLongPressTask={() => router.push(`/focus/${item.id}`)}
+      onStartTask={() => router.push(`/focus/${item.id}`)}
       onToggleDone={() => toggleDone(item.id)}
       onUpdateText={(t) => updateText(item.id, t)}
       onSetPriority={(p) => setPriority(item.id, p)}

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import { colors, garamond } from "@/theme";
@@ -17,7 +17,7 @@ export function TodoRow({
   onSetPriority,
   onToggleStar,
   onDelete,
-  onLongPressTask,
+  onStartTask,
   drag,
 }: {
   todo: Todo;
@@ -26,12 +26,44 @@ export function TodoRow({
   onSetPriority: (p: Priority) => void;
   onToggleStar?: () => void; // omitted for done rows (no leading swipe)
   onDelete: () => void;
-  onLongPressTask?: () => void; // long-press to zoom into the focus/timer view
+  onStartTask?: () => void; // double-tap to zoom into the focus/timer view
   drag?: () => void;
 }) {
   const done = isDone(todo);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(todo.text);
+
+  // Distinguish single tap (edit) from double tap (start/focus): a tap waits
+  // briefly to see if a second tap follows.
+  const lastTap = useRef(0);
+  const singleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (singleTapTimer.current) clearTimeout(singleTapTimer.current);
+    },
+    [],
+  );
+
+  const handlePress = () => {
+    if (done) return;
+    const now = Date.now();
+    if (now - lastTap.current < 280) {
+      // double tap → start the task
+      if (singleTapTimer.current) {
+        clearTimeout(singleTapTimer.current);
+        singleTapTimer.current = null;
+      }
+      lastTap.current = 0;
+      onStartTask?.();
+    } else {
+      lastTap.current = now;
+      singleTapTimer.current = setTimeout(() => {
+        singleTapTimer.current = null;
+        setDraft(todo.text);
+        setEditing(true);
+      }, 280);
+    }
+  };
 
   const commit = () => {
     setEditing(false);
@@ -154,21 +186,16 @@ export function TodoRow({
           ) : (
             <Pressable
               style={{ flex: 1, paddingRight: 4 }}
-              onPress={() => {
-                if (!done) {
-                  setDraft(todo.text);
-                  setEditing(true);
-                }
-              }}
+              onPress={handlePress}
               onLongPress={
-                onLongPressTask
+                drag
                   ? () => {
-                      haptics.rigid();
-                      onLongPressTask();
+                      haptics.soft();
+                      drag();
                     }
                   : undefined
               }
-              delayLongPress={250}
+              delayLongPress={300}
             >
               <Text
                 style={{
