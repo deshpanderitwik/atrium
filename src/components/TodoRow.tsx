@@ -32,6 +32,7 @@ export function TodoRow({
   const done = isDone(todo);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(todo.text);
+  const swipeRef = useRef<Swipeable>(null);
 
   // Distinguish single tap (edit) from double tap (start/focus): a tap waits
   // briefly to see if a second tap follows.
@@ -110,16 +111,19 @@ export function TodoRow({
 
   return (
     <Swipeable
+      ref={swipeRef}
       renderLeftActions={renderLeftActions}
       renderRightActions={renderRightActions}
       overshootLeft={false}
       overshootRight={false}
-      leftThreshold={56}
-      rightThreshold={56}
+      leftThreshold={36}
+      rightThreshold={64}
       onSwipeableOpen={(direction) => {
         if (direction === "left" && onToggleStar) {
+          // flick: toggle the star and snap the drawer shut immediately
           haptics.rigid();
           onToggleStar();
+          swipeRef.current?.close();
         } else if (direction === "right") {
           haptics.warning();
           onDelete();
