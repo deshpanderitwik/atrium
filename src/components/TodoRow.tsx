@@ -36,30 +36,41 @@ export function TodoRow({
     onUpdateText(draft);
   };
 
+  // Action backgrounds mirror the row card: same 4pt vertical inset and 10pt
+  // radius, so a partial swipe reveals a tidy rounded edge instead of a raw
+  // square rectangle poking past the card's corners.
   const renderLeftActions = onToggleStar
     ? () => (
-        <View
-          style={{
-            backgroundColor: colors.oxblood,
-            justifyContent: "center",
-            paddingHorizontal: 24,
-          }}
-        >
-          <Text style={{ color: "#fff", fontSize: 18 }}>★</Text>
+        <View style={{ paddingVertical: 4, justifyContent: "center" }}>
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: colors.oxblood,
+              borderRadius: 10,
+              justifyContent: "center",
+              paddingHorizontal: 24,
+            }}
+          >
+            <Text style={{ color: "#fff", fontSize: 18 }}>★</Text>
+          </View>
         </View>
       )
     : undefined;
 
   const renderRightActions = () => (
-    <View
-      style={{
-        backgroundColor: "#7a2018",
-        justifyContent: "center",
-        alignItems: "flex-end",
-        paddingHorizontal: 24,
-      }}
-    >
-      <Text style={{ color: "#fff", fontSize: 16 }}>delete</Text>
+    <View style={{ paddingVertical: 4, justifyContent: "center" }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "#7a2018",
+          borderRadius: 10,
+          justifyContent: "center",
+          alignItems: "flex-end",
+          paddingHorizontal: 24,
+        }}
+      >
+        <Text style={{ color: "#fff", fontSize: 16 }}>delete</Text>
+      </View>
     </View>
   );
 
@@ -67,8 +78,10 @@ export function TodoRow({
     <Swipeable
       renderLeftActions={renderLeftActions}
       renderRightActions={renderRightActions}
-      leftThreshold={48}
-      rightThreshold={48}
+      overshootLeft={false}
+      overshootRight={false}
+      leftThreshold={56}
+      rightThreshold={56}
       onSwipeableOpen={(direction) => {
         if (direction === "left" && onToggleStar) {
           haptics.rigid();
@@ -124,7 +137,6 @@ export function TodoRow({
             />
           ) : (
             <Pressable
-              focusable={false}
               style={{ flex: 1, paddingRight: 4 }}
               onPress={() => {
                 if (!done) {

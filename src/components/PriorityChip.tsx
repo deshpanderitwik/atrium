@@ -25,7 +25,7 @@ export function PriorityChip({
 
   return (
     <>
-      <Pressable onPress={() => setOpen(true)} hitSlop={6} focusable={false}>
+      <Pressable onPress={() => setOpen(true)} hitSlop={6}>
         <View
           style={{
             borderWidth: 1,

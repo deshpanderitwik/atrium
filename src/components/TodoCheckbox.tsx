@@ -14,7 +14,6 @@ export function TodoCheckbox({
     <Pressable
       onPress={onPress}
       hitSlop={8}
-      focusable={false}
       style={{ width: 32, height: 32, alignItems: "center", justifyContent: "center" }}
     >
       <View

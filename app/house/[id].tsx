@@ -81,7 +81,7 @@ export default function HouseScreen() {
     >
       {/* Header */}
       <View style={{ paddingTop: insets.top + 24 }}>
-        <Pressable onPress={() => router.back()} hitSlop={8} focusable={false} style={{ paddingBottom: 18 }}>
+        <Pressable onPress={() => router.back()} hitSlop={8} style={{ paddingBottom: 18 }}>
           <Text style={{ ...mono(11, 3), color: colors.inkFaint }}>← atrium</Text>
         </Pressable>
         <Text style={{ ...garamond.medium(38), color: colors.ink, marginBottom: 8 }}>

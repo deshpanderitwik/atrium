@@ -22,7 +22,6 @@ export function StarredStrip() {
         return (
           <Pressable
             key={t.id}
-            focusable={false}
             onPress={() => router.push(`/house/${t.houseID}`)}
             style={{
               flexDirection: "row",
