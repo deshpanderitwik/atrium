@@ -155,9 +155,10 @@ enable it. That closes the loop — edit from anywhere (including the phone, via
 the GitHub web UI or Claude Code), commit, and the update reaches the device.
 
 **Native changes** (new native dependency, Expo SDK bump, icon, permissions)
-can't ship over the air — they need a fresh build. The `runtimeVersion`
-fingerprint policy enforces this, and
-[`.github/workflows/build.yml`](./.github/workflows/build.yml) cuts a new
+can't ship over the air — they need a fresh build. The `runtimeVersion` is keyed
+to the app `version`, so bump `version` in `app.config.ts` when native code
+changes (old binaries then won't pull incompatible JS), and let
+[`.github/workflows/build.yml`](./.github/workflows/build.yml) cut a new
 TestFlight binary on a `v*` tag or manual dispatch.
 
 ## Stack

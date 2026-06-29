@@ -32,11 +32,12 @@ const config: ExpoConfig = {
     typedRoutes: true,
   },
   // --- Over-the-air updates (EAS Update) ---
-  // `fingerprint` ties each OTA update to the exact native runtime it was built
-  // against, so any native change (new module, SDK bump) automatically requires
-  // a fresh build instead of shipping a broken JS-only update.
+  // The runtime version gates which builds an OTA update can land on. We key it
+  // to the app version: it's computed identically on a laptop and on EAS (no
+  // native-dir fingerprint drift), so updates always match the build. Bump
+  // `version` when native code changes so old binaries don't pull incompatible JS.
   runtimeVersion: {
-    policy: "fingerprint",
+    policy: "appVersion",
   },
   updates: {
     enabled: true,

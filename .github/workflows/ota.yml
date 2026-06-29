@@ -3,7 +3,8 @@ name: OTA Update
 # The phone edit loop: every push of JS/asset changes publishes an EAS Update to
 # the `production` channel. The TestFlight build picks it up on next launch/resume.
 # Native changes (new deps, SDK bump) do NOT ship this way — they need a new
-# build (see build.yml). The fingerprint runtimeVersion enforces that.
+# build (see build.yml) plus a `version` bump in app.config.ts, since the
+# runtimeVersion is keyed to the app version.
 on:
   push:
     branches:
