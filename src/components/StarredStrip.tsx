@@ -48,9 +48,6 @@ export function StarredStrip() {
                 paddingVertical: 9,
               }}
             >
-              <Text style={{ color: colors.oxblood, fontSize: 12, marginRight: 8 }}>
-                ★
-              </Text>
               <Text
                 numberOfLines={1}
                 style={{ ...garamond.regular(18), color: colors.ink, flex: 1 }}
