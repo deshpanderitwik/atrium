@@ -92,9 +92,14 @@ export function TodoRow({
       )
     : undefined;
 
+  // Swiping left just reveals this button; deletion requires an explicit tap.
   const renderRightActions = () => (
     <View style={{ paddingVertical: 4, justifyContent: "center" }}>
-      <View
+      <Pressable
+        onPress={() => {
+          haptics.warning();
+          onDelete();
+        }}
         style={{
           flex: 1,
           backgroundColor: "#7a2018",
@@ -105,7 +110,7 @@ export function TodoRow({
         }}
       >
         <Text style={{ color: "#fff", fontSize: 16 }}>delete</Text>
-      </View>
+      </Pressable>
     </View>
   );
 
@@ -117,17 +122,15 @@ export function TodoRow({
       overshootLeft={false}
       overshootRight={false}
       leftThreshold={36}
-      rightThreshold={64}
+      rightThreshold={40}
       onSwipeableOpen={(direction) => {
         if (direction === "left" && onToggleStar) {
           // flick: toggle the star and snap the drawer shut immediately
           haptics.rigid();
           onToggleStar();
           swipeRef.current?.close();
-        } else if (direction === "right") {
-          haptics.warning();
-          onDelete();
         }
+        // right swipe only reveals the delete button — no auto-delete
       }}
     >
       <View style={{ paddingVertical: 4 }}>
