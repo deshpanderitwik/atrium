@@ -17,6 +17,7 @@ export function TodoRow({
   onSetPriority,
   onToggleStar,
   onDelete,
+  onLongPressTask,
   drag,
 }: {
   todo: Todo;
@@ -25,6 +26,7 @@ export function TodoRow({
   onSetPriority: (p: Priority) => void;
   onToggleStar?: () => void; // omitted for done rows (no leading swipe)
   onDelete: () => void;
+  onLongPressTask?: () => void; // long-press to zoom into the focus/timer view
   drag?: () => void;
 }) {
   const done = isDone(todo);
@@ -158,8 +160,15 @@ export function TodoRow({
                   setEditing(true);
                 }
               }}
-              onLongPress={drag}
-              delayLongPress={200}
+              onLongPress={
+                onLongPressTask
+                  ? () => {
+                      haptics.rigid();
+                      onLongPressTask();
+                    }
+                  : undefined
+              }
+              delayLongPress={250}
             >
               <Text
                 style={{
