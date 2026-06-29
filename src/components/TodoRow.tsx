@@ -112,10 +112,24 @@ export function TodoRow({
             }}
           />
 
-          {todo.starred === 1 && !done ? (
-            <Text style={{ color: "#fff", fontSize: 13, marginTop: 2, marginRight: 4 }}>
-              ★
-            </Text>
+          {!done ? (
+            <Pressable
+              onPress={() => {
+                haptics.rigid();
+                onToggleStar?.();
+              }}
+              hitSlop={8}
+              style={{ marginTop: 2, marginRight: 4 }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: todo.starred === 1 ? colors.oxblood : colors.inkFaint,
+                }}
+              >
+                {todo.starred === 1 ? "★" : "☆"}
+              </Text>
+            </Pressable>
           ) : null}
 
           {editing ? (
