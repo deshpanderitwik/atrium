@@ -112,22 +112,18 @@ export function TodoRow({
             }}
           />
 
-          {!done ? (
+          {todo.starred === 1 && !done ? (
             <Pressable
               onPress={() => {
                 haptics.rigid();
                 onToggleStar?.();
               }}
               hitSlop={8}
-              style={{ marginTop: 2, marginRight: 4 }}
+              style={{ marginRight: 4 }}
             >
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: todo.starred === 1 ? colors.oxblood : colors.inkFaint,
-                }}
-              >
-                {todo.starred === 1 ? "★" : "☆"}
+              {/* lineHeight matches the title so the star centers on its first line */}
+              <Text style={{ fontSize: 14, lineHeight: 25, color: colors.oxblood }}>
+                ★
               </Text>
             </Pressable>
           ) : null}
