@@ -13,8 +13,10 @@ export function TodoCheckbox({
   return (
     <Pressable
       onPress={onPress}
-      hitSlop={8}
-      style={{ width: 32, height: 32, alignItems: "center", justifyContent: "center" }}
+      hitSlop={12}
+      // height matches the todo text line (25) so the dot centers with the text;
+      // hitSlop keeps the tap target comfortably large.
+      style={{ width: 32, height: 25, alignItems: "center", justifyContent: "center" }}
     >
       <View
         style={{
