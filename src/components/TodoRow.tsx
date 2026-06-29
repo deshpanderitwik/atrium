@@ -161,7 +161,7 @@ export function TodoRow({
           )}
 
           {!done ? (
-            <View style={{ marginLeft: 8 }}>
+            <View style={{ marginLeft: 8, alignSelf: "center" }}>
               <PriorityChip
                 priority={todo.priority as Priority}
                 onChange={onSetPriority}
