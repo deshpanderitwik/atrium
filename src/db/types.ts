@@ -2,7 +2,7 @@
 
 export const PRIORITIES = [0, 1, 2, 3] as const;
 export type Priority = (typeof PRIORITIES)[number];
-export const DEFAULT_PRIORITY: Priority = 2;
+export const DEFAULT_PRIORITY: Priority = 0;
 export const priorityLabel = (p: number) => `P${p}`;
 
 // statusRaw: 0 = open, 1 = done. starred stored as 0/1 in SQLite.
