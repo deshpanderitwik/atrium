@@ -5,9 +5,10 @@ import { Feather } from "@expo/vector-icons";
 import { colors, garamond, mono } from "@/theme";
 import { haptics } from "@/lib/haptics";
 import { formatDuration } from "@/lib/time";
-import { Priority, Todo, isDone } from "@/db/types";
+import { dueInLabel, isResting } from "@/lib/cadence";
+import { Todo, isDone } from "@/db/types";
 import { TodoCheckbox } from "./TodoCheckbox";
-import { PriorityChip } from "./PriorityChip";
+import { RecurrenceChip } from "./RecurrenceChip";
 
 // Ported from TodoRow.swift — checkbox, optional star, inline-editable text,
 // and a priority chip; wrapped in swipe-to-star (leading) / swipe-to-delete
@@ -16,7 +17,7 @@ export function TodoRow({
   todo,
   onToggleDone,
   onUpdateText,
-  onSetPriority,
+  onSetCadence,
   onToggleStar,
   onDelete,
   onStartTask,
@@ -25,13 +26,14 @@ export function TodoRow({
   todo: Todo;
   onToggleDone: () => void;
   onUpdateText: (text: string) => void;
-  onSetPriority: (p: Priority) => void;
+  onSetCadence: (days: number) => void;
   onToggleStar?: () => void; // omitted for done rows (no leading swipe)
   onDelete: () => void;
   onStartTask?: () => void; // double-tap to zoom into the focus/timer view
   drag?: () => void;
 }) {
   const done = isDone(todo);
+  const resting = isResting(todo, Date.now());
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(todo.text);
   const swipeRef = useRef<Swipeable>(null);
@@ -147,6 +149,7 @@ export function TodoRow({
             paddingVertical: 12,
             paddingLeft: 4,
             paddingRight: 8,
+            opacity: resting ? 0.5 : 1, // resting recurring tasks recede
           }}
         >
           <TodoCheckbox
@@ -222,11 +225,20 @@ export function TodoRow({
           )}
 
           {!done ? (
-            <View style={{ marginLeft: 8, alignSelf: "center" }}>
-              <PriorityChip
-                priority={todo.priority as Priority}
-                onChange={onSetPriority}
-              />
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginLeft: 8,
+                alignSelf: "center",
+              }}
+            >
+              {resting && todo.nextDueAt != null ? (
+                <Text style={{ ...mono(10, 0.5), color: colors.inkFaint, marginRight: 8 }}>
+                  {dueInLabel(todo.nextDueAt, Date.now())}
+                </Text>
+              ) : null}
+              <RecurrenceChip cadenceDays={todo.cadenceDays} onChange={onSetCadence} />
             </View>
           ) : todo.focusAccumSeconds > 0 ? (
             // Completed tasks that were timed show how long they took + breaks.

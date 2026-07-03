@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, garamond } from "@/theme";
 import { HOUSES } from "@/houses";
 import { useTodos } from "@/db/store";
-import { openCountForHouse } from "@/db/selectors";
+import { activeCountForHouse } from "@/db/selectors";
 import { HouseDoor } from "@/components/HouseDoor";
 import { StarredStrip } from "@/components/StarredStrip";
 
@@ -44,7 +44,7 @@ export default function Atrium() {
 
       {HOUSES.map((house) => (
         <Pressable key={house.id} onPress={() => router.push(`/house/${house.id}`)}>
-          <HouseDoor house={house} openCount={openCountForHouse(todos, house.id)} />
+          <HouseDoor house={house} openCount={activeCountForHouse(todos, house.id)} />
         </Pressable>
       ))}
 

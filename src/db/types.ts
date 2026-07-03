@@ -17,6 +17,13 @@ export type Todo = {
   starred: number; // 0 | 1
   createdAt: number;
   completedAt: number | null;
+  // Recurrence (completion-anchored). cadenceDays 0 = one-off; otherwise the
+  // task returns cadenceDays after each completion. nextDueAt is a start-of-day
+  // timestamp; the task is "resting" while nextDueAt is in the future.
+  cadenceDays: number;
+  nextDueAt: number | null;
+  lastCompletedAt: number | null;
+  timesCompleted: number;
   // Focus-timer metrics.
   focusStartedAt: number | null; // when the task was first begun
   focusRunningSince: number | null; // timestamp the current run started (null if paused)

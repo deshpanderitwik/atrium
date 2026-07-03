@@ -15,7 +15,8 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { DEFAULT_PRIORITY, Priority, Todo } from "./types";
+import { Todo } from "./types";
+import { DAY_MS, startOfDay } from "@/lib/cadence";
 
 const DB_NAME = "atrium.db";
 
@@ -36,16 +37,24 @@ async function getDb() {
           starred INTEGER NOT NULL,
           createdAt INTEGER NOT NULL,
           completedAt INTEGER,
+          cadenceDays INTEGER NOT NULL DEFAULT 0,
+          nextDueAt INTEGER,
+          lastCompletedAt INTEGER,
+          timesCompleted INTEGER NOT NULL DEFAULT 0,
           focusStartedAt INTEGER,
           focusRunningSince INTEGER,
           focusAccumSeconds REAL NOT NULL DEFAULT 0,
           focusBreaks INTEGER NOT NULL DEFAULT 0
         );
       `);
-      // Migrate older installs that predate the focus-timer columns.
+      // Migrate older installs that predate later columns.
       const info = await db.getAllAsync<{ name: string }>("PRAGMA table_info(todos)");
       const have = new Set(info.map((c) => c.name));
       const newCols: [string, string][] = [
+        ["cadenceDays", "INTEGER NOT NULL DEFAULT 0"],
+        ["nextDueAt", "INTEGER"],
+        ["lastCompletedAt", "INTEGER"],
+        ["timesCompleted", "INTEGER NOT NULL DEFAULT 0"],
         ["focusStartedAt", "INTEGER"],
         ["focusRunningSince", "INTEGER"],
         ["focusAccumSeconds", "REAL NOT NULL DEFAULT 0"],
@@ -74,19 +83,15 @@ function uuid(): string {
 type Store = {
   todos: Todo[];
   ready: boolean;
-  addTodo: (houseID: string, text: string, priority: Priority) => Promise<void>;
+  addTodo: (houseID: string, text: string, cadenceDays: number) => Promise<void>;
   updateText: (id: string, text: string) => Promise<void>;
   toggleDone: (id: string) => Promise<void>;
   toggleStar: (id: string) => Promise<void>;
-  setPriority: (id: string, priority: Priority) => Promise<void>;
+  setCadence: (id: string, cadenceDays: number) => Promise<void>;
   deleteTodo: (id: string) => Promise<void>;
   focusResume: (id: string) => Promise<void>;
   focusPause: (id: string) => Promise<void>;
-  reorderWithin: (
-    houseID: string,
-    priority: number,
-    orderedIds: string[],
-  ) => Promise<void>;
+  reorderActive: (houseID: string, orderedIds: string[]) => Promise<void>;
 };
 
 const TodosContext = createContext<Store | null>(null);
@@ -110,19 +115,20 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const addTodo = useCallback(
-    async (houseID: string, text: string, priority: Priority) => {
+    async (houseID: string, text: string, cadenceDays: number) => {
       const trimmed = text.trim();
       if (!trimmed) return;
       const db = await getDb();
-      // New item goes to the bottom of its (house, priority) open cluster.
+      // New item goes to the bottom of the house's open list.
       const row = await db.getFirstAsync<{ maxPos: number | null }>(
-        "SELECT MAX(position) AS maxPos FROM todos WHERE houseID = ? AND statusRaw = 0 AND priority = ?",
-        [houseID, priority],
+        "SELECT MAX(position) AS maxPos FROM todos WHERE houseID = ? AND statusRaw = 0",
+        [houseID],
       );
       const position = (row?.maxPos ?? 0) + 1;
+      // priority column is retained but unused; default 0.
       await db.runAsync(
-        "INSERT INTO todos (id, text, houseID, priority, position, statusRaw, starred, createdAt, completedAt) VALUES (?, ?, ?, ?, ?, 0, 0, ?, NULL)",
-        [uuid(), trimmed, houseID, priority, position, Date.now()],
+        "INSERT INTO todos (id, text, houseID, priority, position, statusRaw, starred, createdAt, completedAt, cadenceDays) VALUES (?, ?, ?, 0, ?, 0, 0, ?, NULL, ?)",
+        [uuid(), trimmed, houseID, position, Date.now(), cadenceDays],
       );
       await refresh();
     },
@@ -149,19 +155,31 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
       const db = await getDb();
       const t = await db.getFirstAsync<Todo>("SELECT * FROM todos WHERE id = ?", [id]);
       if (!t) return;
-      if (t.statusRaw === 0) {
-        // Marking done unstars and finalizes any running focus timer so its
-        // elapsed time is captured in the totals.
+      if (t.statusRaw === 1) {
+        // Completed one-off → reopen.
+        await db.runAsync(
+          "UPDATE todos SET statusRaw = 0, completedAt = NULL WHERE id = ?",
+          [id],
+        );
+      } else if (t.cadenceDays > 0) {
+        // Recurring: complete this occurrence and rest until the next due date
+        // (completion-anchored). Stays open; the focus timer resets for the
+        // next cycle.
+        const now = Date.now();
+        const nextDue = startOfDay(now) + t.cadenceDays * DAY_MS;
+        await db.runAsync(
+          `UPDATE todos SET lastCompletedAt = ?, nextDueAt = ?, timesCompleted = timesCompleted + 1,
+             focusStartedAt = NULL, focusRunningSince = NULL, focusAccumSeconds = 0, focusBreaks = 0
+           WHERE id = ?`,
+          [now, nextDue, id],
+        );
+      } else {
+        // One-off: mark done, unstar, finalize any running focus timer.
         const running =
           t.focusRunningSince != null ? (Date.now() - t.focusRunningSince) / 1000 : 0;
         await db.runAsync(
           "UPDATE todos SET statusRaw = 1, completedAt = ?, starred = 0, focusAccumSeconds = focusAccumSeconds + ?, focusRunningSince = NULL WHERE id = ?",
           [Date.now(), running, id],
-        );
-      } else {
-        await db.runAsync(
-          "UPDATE todos SET statusRaw = 0, completedAt = NULL WHERE id = ?",
-          [id],
         );
       }
       await refresh();
@@ -213,22 +231,16 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
     [refresh],
   );
 
-  const setPriority = useCallback(
-    async (id: string, priority: Priority) => {
+  const setCadence = useCallback(
+    async (id: string, cadenceDays: number) => {
       const db = await getDb();
-      const t = await db.getFirstAsync<Todo>("SELECT * FROM todos WHERE id = ?", [id]);
-      if (!t || t.priority === priority) return;
-      // Reposition at the bottom of the new cluster (max + 1, no renumber).
-      const row = await db.getFirstAsync<{ maxPos: number | null }>(
-        "SELECT MAX(position) AS maxPos FROM todos WHERE houseID = ? AND statusRaw = 0 AND priority = ? AND id != ?",
-        [t.houseID, priority, id],
+      const days = Math.max(0, Math.floor(cadenceDays));
+      // Turning recurrence off clears the resting schedule; turning it on leaves
+      // the task active (nextDueAt stays null until first completed).
+      await db.runAsync(
+        "UPDATE todos SET cadenceDays = ?, nextDueAt = CASE WHEN ? = 0 THEN NULL ELSE nextDueAt END WHERE id = ?",
+        [days, days, id],
       );
-      const position = (row?.maxPos ?? 0) + 1;
-      await db.runAsync("UPDATE todos SET priority = ?, position = ? WHERE id = ?", [
-        priority,
-        position,
-        id,
-      ]);
       await refresh();
     },
     [refresh],
@@ -243,10 +255,10 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
     [refresh],
   );
 
-  const reorderWithin = useCallback(
-    async (_houseID: string, _priority: number, orderedIds: string[]) => {
+  const reorderActive = useCallback(
+    async (_houseID: string, orderedIds: string[]) => {
       const db = await getDb();
-      // Renumber the cluster sequentially 0,1,2,… exactly like the Swift onMove.
+      // Renumber the active list sequentially 0,1,2,…
       await db.withTransactionAsync(async () => {
         for (let i = 0; i < orderedIds.length; i++) {
           await db.runAsync("UPDATE todos SET position = ? WHERE id = ?", [
@@ -268,11 +280,11 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
       updateText,
       toggleDone,
       toggleStar,
-      setPriority,
+      setCadence,
       deleteTodo,
       focusResume,
       focusPause,
-      reorderWithin,
+      reorderActive,
     }),
     [
       todos,
@@ -281,11 +293,11 @@ export function TodosProvider({ children }: { children: React.ReactNode }) {
       updateText,
       toggleDone,
       toggleStar,
-      setPriority,
+      setCadence,
       deleteTodo,
       focusResume,
       focusPause,
-      reorderWithin,
+      reorderActive,
     ],
   );
 
@@ -297,5 +309,3 @@ export function useTodos(): Store {
   if (!ctx) throw new Error("useTodos must be used within a TodosProvider");
   return ctx;
 }
-
-export { DEFAULT_PRIORITY };

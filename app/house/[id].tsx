@@ -11,18 +11,15 @@ import { colors, garamond, mono } from "@/theme";
 import { houseById } from "@/houses";
 import { haptics } from "@/lib/haptics";
 import { useTodos } from "@/db/store";
-import { DEFAULT_PRIORITY, Priority, Todo, priorityLabel } from "@/db/types";
-import {
-  doneByDay,
-  houseHasAnyTodos,
-  openByPriority,
-} from "@/db/selectors";
+import { Todo } from "@/db/types";
+import { activeTodos, doneByDay, houseHasAnyTodos, restingTodos } from "@/db/selectors";
 import { TodoRow } from "@/components/TodoRow";
-import { PriorityChip } from "@/components/PriorityChip";
+import { RecurrenceChip } from "@/components/RecurrenceChip";
 import { PrioritySectionHeader } from "@/components/PrioritySectionHeader";
 import { DayHeader } from "@/components/DayHeader";
 
-// Ported from HouseView.swift + TodoListPane.swift.
+// House view — an active list (drag-orderable), a dimmed "resting" list of
+// recurring tasks waiting for their next turn, and the done-by-day history.
 export default function HouseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -35,42 +32,46 @@ export default function HouseScreen() {
     updateText,
     toggleDone,
     toggleStar,
-    setPriority,
+    setCadence,
     deleteTodo,
-    reorderWithin,
+    reorderActive,
   } = useTodos();
 
   const [newText, setNewText] = useState("");
-  const [newPriority, setNewPriority] = useState<Priority>(DEFAULT_PRIORITY);
+  const [newCadence, setNewCadence] = useState(0); // one-off by default
   const inputRef = useRef<TextInput>(null);
 
   if (!house) return null;
 
-  const clusters = openByPriority(todos, house.id);
+  const active = activeTodos(todos, house.id);
+  const resting = restingTodos(todos, house.id);
   const days = doneByDay(todos, house.id);
   const empty = !houseHasAnyTodos(todos, house.id);
 
   const commitNew = async () => {
     const text = newText.trim();
     if (!text) return;
-    await addTodo(house.id, text, newPriority);
+    await addTodo(house.id, text, newCadence);
     haptics.light();
     setNewText("");
-    inputRef.current?.focus(); // keep adding; priority stays sticky
+    inputRef.current?.focus(); // keep adding; cadence stays sticky
   };
 
-  const renderOpenItem = ({ item, drag }: RenderItemParams<Todo>) => (
+  const rowFor = (item: Todo, drag?: () => void) => (
     <TodoRow
       todo={item}
       drag={drag}
       onStartTask={() => router.push(`/focus/${item.id}`)}
       onToggleDone={() => toggleDone(item.id)}
       onUpdateText={(t) => updateText(item.id, t)}
-      onSetPriority={(p) => setPriority(item.id, p)}
+      onSetCadence={(d) => setCadence(item.id, d)}
       onToggleStar={() => toggleStar(item.id)}
       onDelete={() => deleteTodo(item.id)}
     />
   );
+
+  const renderActiveItem = ({ item, drag }: RenderItemParams<Todo>) =>
+    rowFor(item, drag);
 
   return (
     <NestableScrollContainer
@@ -130,26 +131,33 @@ export default function HouseScreen() {
           style={{ ...garamond.regular(19), color: colors.ink, flex: 1, padding: 0 }}
         />
         <View style={{ marginLeft: 8 }}>
-          <PriorityChip priority={newPriority} onChange={setNewPriority} />
+          <RecurrenceChip cadenceDays={newCadence} onChange={setNewCadence} />
         </View>
       </View>
 
-      {/* Open todos by priority */}
-      {clusters.map((cluster) => (
-        <View key={cluster.priority}>
-          <PrioritySectionHeader label={priorityLabel(cluster.priority)} />
-          <NestableDraggableFlatList
-            data={cluster.items}
-            keyExtractor={(t) => t.id}
-            renderItem={renderOpenItem}
-            onDragEnd={({ data }) => {
-              haptics.soft();
-              reorderWithin(house.id, cluster.priority, data.map((t) => t.id));
-            }}
-            activationDistance={12}
-          />
+      {/* Active */}
+      {active.length > 0 ? (
+        <NestableDraggableFlatList
+          data={active}
+          keyExtractor={(t) => t.id}
+          renderItem={renderActiveItem}
+          onDragEnd={({ data }) => {
+            haptics.soft();
+            reorderActive(house.id, data.map((t) => t.id));
+          }}
+          activationDistance={12}
+        />
+      ) : null}
+
+      {/* Resting (recurring tasks waiting for their next turn) */}
+      {resting.length > 0 ? (
+        <View>
+          <PrioritySectionHeader label="RESTING" topPadding={28} bottomPadding={4} />
+          {resting.map((item) => (
+            <View key={item.id}>{rowFor(item)}</View>
+          ))}
         </View>
-      ))}
+      ) : null}
 
       {/* Empty state */}
       {empty ? (
@@ -176,7 +184,7 @@ export default function HouseScreen() {
                   todo={item}
                   onToggleDone={() => toggleDone(item.id)}
                   onUpdateText={() => {}}
-                  onSetPriority={() => {}}
+                  onSetCadence={() => {}}
                   onDelete={() => deleteTodo(item.id)}
                 />
               ))}

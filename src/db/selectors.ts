@@ -1,39 +1,34 @@
-// Pure derivations over the todo list — the SwiftData @Query filters/sorts and
-// the grouping logic from TodoListPane, reproduced as plain functions.
+// Pure derivations over the todo list: the active/resting/done slices and the
+// done-by-day grouping.
 
-import { PRIORITIES, Todo } from "./types";
+import { Todo } from "./types";
+import { isResting, startOfDay } from "@/lib/cadence";
 
-const byPriorityThenPosition = (a: Todo, b: Todo) =>
-  a.priority - b.priority || a.position - b.position;
+const byPosition = (a: Todo, b: Todo) => a.position - b.position;
 
-export const openTodosForHouse = (todos: Todo[], houseID: string): Todo[] =>
+// Open and due now: one-offs plus recurring tasks whose next occurrence has
+// arrived. Ordered by manual position.
+export const activeTodos = (todos: Todo[], houseID: string, now = Date.now()): Todo[] =>
   todos
-    .filter((t) => t.houseID === houseID && t.statusRaw === 0)
-    .sort(byPriorityThenPosition);
+    .filter((t) => t.houseID === houseID && t.statusRaw === 0 && !isResting(t, now))
+    .sort(byPosition);
 
-export const openCountForHouse = (todos: Todo[], houseID: string): number =>
-  todos.filter((t) => t.houseID === houseID && t.statusRaw === 0).length;
-
-export const starredOpen = (todos: Todo[]): Todo[] =>
+// Recurring tasks that were done recently and are waiting for their next due
+// date. Ordered by soonest-due.
+export const restingTodos = (todos: Todo[], houseID: string, now = Date.now()): Todo[] =>
   todos
-    .filter((t) => t.starred === 1 && t.statusRaw === 0)
-    .sort(byPriorityThenPosition);
+    .filter((t) => t.houseID === houseID && isResting(t, now))
+    .sort((a, b) => (a.nextDueAt ?? 0) - (b.nextDueAt ?? 0));
 
-// Open todos grouped into priority clusters P0→P3, position-ordered within each.
-export type PriorityCluster = { priority: number; items: Todo[] };
-export const openByPriority = (todos: Todo[], houseID: string): PriorityCluster[] => {
-  const open = openTodosForHouse(todos, houseID);
-  return PRIORITIES.map((priority) => ({
-    priority,
-    items: open.filter((t) => t.priority === priority),
-  })).filter((c) => c.items.length > 0);
-};
+// The house-door count reflects what's actually to-do now (active only).
+export const activeCountForHouse = (todos: Todo[], houseID: string, now = Date.now()): number =>
+  todos.filter((t) => t.houseID === houseID && t.statusRaw === 0 && !isResting(t, now)).length;
 
-const startOfDay = (ms: number): number => {
-  const d = new Date(ms);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-};
+// Starred + open + due now (resting starred tasks aren't actionable yet).
+export const starredOpen = (todos: Todo[], now = Date.now()): Todo[] =>
+  todos
+    .filter((t) => t.starred === 1 && t.statusRaw === 0 && !isResting(t, now))
+    .sort(byPosition);
 
 // Done todos grouped by completion day, most-recent day first, newest within.
 export type DayGroup = { day: number; items: Todo[] };
@@ -57,7 +52,7 @@ export const doneByDay = (todos: Todo[], houseID: string): DayGroup[] => {
 export const houseHasAnyTodos = (todos: Todo[], houseID: string): boolean =>
   todos.some((t) => t.houseID === houseID);
 
-// "today" / "yesterday" / "monday 12 may" / "12 may 2024" — lowercase, as before.
+// "today" / "yesterday" / "monday 12 may" / "12 may 2024" — lowercase.
 export const dayLabel = (dayMs: number): string => {
   const today = startOfDay(Date.now());
   const oneDay = 86_400_000;
