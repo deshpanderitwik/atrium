@@ -38,11 +38,9 @@ export function RecurrenceChip({
     setOpen(false);
   };
 
-  const step = (delta: number) => {
-    const next = Math.max(1, draft + delta);
-    setDraft(next);
+  const bump = (delta: number) => {
+    setDraft((d) => Math.max(1, d + delta));
     haptics.selection();
-    onChange(next); // live — keep the popover open for more adjustments
   };
 
   const screen = Dimensions.get("window");
@@ -136,8 +134,10 @@ export function RecurrenceChip({
 
             <View style={{ height: 1, backgroundColor: colors.rule, marginVertical: 2 }} />
 
-            {/* custom "every N days" stepper */}
-            <View
+            {/* custom "every N days": tap the row to apply the current value;
+                +/- only adjust the number. */}
+            <Pressable
+              onPress={() => pick(draft)}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -146,9 +146,9 @@ export function RecurrenceChip({
                 paddingVertical: 12,
               }}
             >
-              <Text style={{ ...mono(12, 1), color: colors.inkFaint }}>every</Text>
+              <Text style={{ ...mono(13, 1), color: colors.ink }}>every</Text>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Pressable onPress={() => step(-1)} hitSlop={8}>
+                <Pressable onPress={() => bump(-1)} hitSlop={10}>
                   <Feather name="minus" size={16} color={colors.ink} />
                 </Pressable>
                 <Text
@@ -161,11 +161,11 @@ export function RecurrenceChip({
                 >
                   {draft}d
                 </Text>
-                <Pressable onPress={() => step(1)} hitSlop={8}>
+                <Pressable onPress={() => bump(1)} hitSlop={10}>
                   <Feather name="plus" size={16} color={colors.ink} />
                 </Pressable>
               </View>
-            </View>
+            </Pressable>
           </View>
         </Pressable>
       </Modal>
