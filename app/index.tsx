@@ -137,11 +137,17 @@ export default function Arrive() {
           </Animated.View>
         </Pressable>
 
-        {mode === "idle" ? (
-          <Text style={{ ...mono(10, 2), color: colors.inkFaint, marginTop: 28 }}>
-            press · hold · breathe
-          </Text>
-        ) : null}
+        {/* Reserve the hint's space always so the orb never reflows/nudges. */}
+        <Text
+          style={{
+            ...mono(10, 2),
+            color: colors.inkFaint,
+            marginTop: 28,
+            opacity: mode === "idle" ? 1 : 0,
+          }}
+        >
+          press · hold · breathe
+        </Text>
       </View>
 
       {/* Choices (after release) */}
