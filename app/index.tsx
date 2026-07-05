@@ -24,7 +24,7 @@ const PERIOD_SECONDS = 70; // + a 10s rest
 // The heard audio trails its reported playback position by the device's output
 // latency, so after calibration the tap still lands slightly early. This trim
 // delays the haptic grid to compensate — tune to taste.
-const HAPTIC_TRIM_MS = 70;
+const HAPTIC_TRIM_MS = 45;
 
 type Phase = "in" | "out" | "rest";
 
