@@ -402,27 +402,34 @@ export default function Arrive() {
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                gap: 10,
+                justifyContent: "center",
+                gap: 12,
                 marginBottom: 26,
               }}
             >
+              <Text style={{ ...mono(11, 2), color: colors.inkFaint }}>silent</Text>
               <View
                 style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: 4,
+                  width: 40,
+                  height: 24,
+                  borderRadius: 12,
                   borderWidth: 1,
-                  borderColor: colors.rule,
+                  borderColor: silent ? colors.oxblood : colors.rule,
                   backgroundColor: silent ? colors.oxblood : "transparent",
-                  alignItems: "center",
                   justifyContent: "center",
+                  paddingHorizontal: 2,
                 }}
               >
-                {silent ? <Feather name="check" size={12} color="#fff" /> : null}
+                <View
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    backgroundColor: silent ? "#fff" : colors.inkFaint,
+                    alignSelf: silent ? "flex-end" : "flex-start",
+                  }}
+                />
               </View>
-              <Text style={{ ...mono(11, 2), color: colors.inkFaint }}>
-                silent · haptics only
-              </Text>
             </Pressable>
 
             <Pressable
