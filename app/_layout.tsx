@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from "react";
-import { AppState, StyleSheet, View } from "react-native";
+import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -10,13 +9,11 @@ import { colors } from "@/theme";
 import { TodosProvider } from "@/db/store";
 import { ReflectionsProvider } from "@/db/reflections";
 import { useOtaUpdates } from "@/lib/useOtaUpdates";
-import { useArriveOnResume } from "@/lib/useArriveOnResume";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   useOtaUpdates();
-  useArriveOnResume();
 
   const [fontsLoaded] = useFonts({
     "EBGaramond-Regular": require("../assets/fonts/EBGaramond-Regular.ttf"),
@@ -44,31 +41,9 @@ export default function RootLayout() {
                 animation: "slide_from_right",
               }}
             />
-            <BackgroundCover />
           </ReflectionsProvider>
         </TodosProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
-  );
-}
-
-// Covers the screen with plain paper whenever the app isn't active, so the
-// backgrounded snapshot and the resume frame never show the previous screen —
-// the stack resets to Arrive underneath, and we reveal it with no flash.
-function BackgroundCover() {
-  const [covered, setCovered] = useState(AppState.currentState !== "active");
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (state) => {
-      setCovered(state !== "active");
-    });
-    return () => sub.remove();
-  }, []);
-
-  if (!covered) return null;
-  return (
-    <View
-      pointerEvents="none"
-      style={[StyleSheet.absoluteFill, { backgroundColor: colors.paper }]}
-    />
   );
 }
