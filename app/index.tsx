@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, Pressable, Text, View } from "react-native";
+import { AppState, Modal, Pressable, Text, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import Animated, {
   Easing,
   cancelAnimation,
@@ -40,6 +41,8 @@ export default function Arrive() {
   const [line, setLine] = useState(pickGuidingLine);
   const [breathing, setBreathing] = useState(false);
   const [phase, setPhase] = useState<Phase>("in");
+  const [roundsModal, setRoundsModal] = useState(false);
+  const [rounds, setRounds] = useState(3);
 
   const scale = useSharedValue(1);
   const startRef = useRef(0);
@@ -48,12 +51,14 @@ export default function Arrive() {
   const holdingRef = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const calibRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Gesture state: hold vs. double-tap (hands-free).
-  const modeRef = useRef<"hold" | "free" | null>(null);
+  // Gesture state: long-press opens the rounds modal; double-tap toggles a
+  // hands-free session. roundsLimitRef null = run indefinitely.
+  const modeRef = useRef<"menu" | null>(null);
   const breathingRef = useRef(false);
   const pressedRef = useRef(false);
   const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTapRef = useRef(0);
+  const roundsLimitRef = useRef<number | null>(null);
   const breathAudio = useBreathAudio();
 
   const stopTick = () => {
@@ -119,11 +124,13 @@ export default function Arrive() {
         modeRef.current = null;
         pressedRef.current = false;
         lastTapRef.current = 0;
+        roundsLimitRef.current = null;
         stopTick();
         breathAudio.stop();
         cancelAnimation(scale);
         scale.value = 1;
         setBreathing(false);
+        setRoundsModal(false);
         setPhase("in");
         setLine(pickGuidingLine());
       }
@@ -158,9 +165,11 @@ export default function Arrive() {
     [startBreathAnim, stopBreathAnim],
   );
 
-  const startBreath = (mode: "hold" | "free") => {
-    modeRef.current = mode;
+  // rounds === null runs indefinitely; otherwise stop after that many rounds
+  // (a round = one 70s period: 60s breath + 10s rest).
+  const startBreath = (roundsLimit: number | null) => {
     breathingRef.current = true;
+    roundsLimitRef.current = roundsLimit;
     startRef.current = Date.now() + HAPTIC_TRIM_MS;
     holdingRef.current = true;
     setPhase("in");
@@ -172,6 +181,13 @@ export default function Arrive() {
     const tick = () => {
       handleBeat(beatRef.current);
       beatRef.current += 1;
+      if (
+        roundsLimitRef.current != null &&
+        beatRef.current >= roundsLimitRef.current * PERIOD_SECONDS
+      ) {
+        stopBreath(); // reached the requested number of rounds
+        return;
+      }
       const nextAt = startRef.current + beatRef.current * 1000;
       timeoutRef.current = setTimeout(tick, Math.max(0, nextAt - Date.now()));
     };
@@ -179,8 +195,8 @@ export default function Arrive() {
   };
 
   const stopBreath = () => {
-    modeRef.current = null;
     breathingRef.current = false;
+    roundsLimitRef.current = null;
     holdingRef.current = false;
     stopTick();
     breathAudio.stop();
@@ -189,13 +205,17 @@ export default function Arrive() {
     setBreathing(false);
   };
 
-  // Press-and-hold breathes while held; a sustained press past HOLD_MS starts
-  // it, releasing stops it. A quick double-tap toggles a hands-free session.
+  // Long-press opens the rounds modal; a quick double-tap toggles an indefinite
+  // hands-free session.
   const onPressIn = () => {
     pressedRef.current = true;
-    if (!breathingRef.current) {
+    if (!breathingRef.current && !roundsModal) {
       holdTimeoutRef.current = setTimeout(() => {
-        if (pressedRef.current && !breathingRef.current) startBreath("hold");
+        if (pressedRef.current && !breathingRef.current) {
+          modeRef.current = "menu";
+          haptics.rigid();
+          setRoundsModal(true);
+        }
       }, HOLD_MS);
     }
   };
@@ -206,19 +226,24 @@ export default function Arrive() {
       clearTimeout(holdTimeoutRef.current);
       holdTimeoutRef.current = null;
     }
-    if (modeRef.current === "hold") {
-      stopBreath(); // hold released
+    if (modeRef.current === "menu") {
+      modeRef.current = null; // long-press opened the modal; not a tap
       return;
     }
-    // short press → tap; two quick taps toggle the hands-free session
     const now = Date.now();
     if (now - lastTapRef.current < DOUBLE_TAP_MS) {
       lastTapRef.current = 0;
       if (breathingRef.current) stopBreath();
-      else startBreath("free");
+      else startBreath(null); // indefinite hands-free
     } else {
       lastTapRef.current = now;
     }
+  };
+
+  const beginRounds = () => {
+    setRoundsModal(false);
+    modeRef.current = null;
+    startBreath(rounds);
   };
 
   const orbStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -294,6 +319,75 @@ export default function Arrive() {
       >
         <Text style={{ ...mono(10, 3), color: colors.inkFaint }}>reflections</Text>
       </Pressable>
+
+      {/* Rounds modal (long-press) */}
+      <Modal
+        transparent
+        visible={roundsModal}
+        animationType="fade"
+        onRequestClose={() => setRoundsModal(false)}
+      >
+        <Pressable
+          onPress={() => setRoundsModal(false)}
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.45)",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Pressable
+            onPress={() => {}}
+            style={{
+              width: 260,
+              backgroundColor: colors.paperWarm,
+              borderWidth: 1,
+              borderColor: colors.rule,
+              borderRadius: 14,
+              paddingVertical: 28,
+              paddingHorizontal: 28,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ ...garamond.italic(20), color: colors.ink, marginBottom: 22 }}>
+              how many rounds?
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 28,
+                marginBottom: 26,
+              }}
+            >
+              <Pressable onPress={() => setRounds((r) => Math.max(1, r - 1))} hitSlop={14}>
+                <Feather name="minus" size={22} color={colors.ink} />
+              </Pressable>
+              <Text
+                style={{ ...mono(26, 2), color: colors.ink, minWidth: 44, textAlign: "center" }}
+              >
+                {rounds}
+              </Text>
+              <Pressable onPress={() => setRounds((r) => Math.min(20, r + 1))} hitSlop={14}>
+                <Feather name="plus" size={22} color={colors.ink} />
+              </Pressable>
+            </View>
+            <Pressable
+              onPress={beginRounds}
+              style={{
+                borderWidth: 1,
+                borderColor: colors.rule,
+                borderRadius: 10,
+                paddingVertical: 14,
+                paddingHorizontal: 48,
+              }}
+            >
+              <Text style={{ ...mono(12, 3), color: colors.ink }}>begin</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
