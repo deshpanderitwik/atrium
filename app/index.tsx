@@ -160,11 +160,6 @@ export default function Arrive() {
             </Text>
           </Animated.View>
         </Pressable>
-        <Text
-          style={{ ...mono(10, 2), color: colors.inkFaint, marginTop: 20, opacity: breathing ? 0 : 1 }}
-        >
-          press · hold · breathe
-        </Text>
       </View>
 
       {/* Actions + reflections entry */}
