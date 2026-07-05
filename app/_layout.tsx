@@ -8,11 +8,13 @@ import * as SplashScreen from "expo-splash-screen";
 import { colors } from "@/theme";
 import { TodosProvider } from "@/db/store";
 import { useOtaUpdates } from "@/lib/useOtaUpdates";
+import { useArriveOnResume } from "@/lib/useArriveOnResume";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   useOtaUpdates();
+  useArriveOnResume();
 
   const [fontsLoaded] = useFonts({
     "EBGaramond-Regular": require("../assets/fonts/EBGaramond-Regular.ttf"),

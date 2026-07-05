@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { AppState, Pressable, Text, View } from "react-native";
 import Animated, {
   Easing,
   cancelAnimation,
@@ -26,7 +26,7 @@ const CYCLE_MS = INHALE_MS + EXHALE_MS;
 export default function Arrive() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [line] = useState(pickGuidingLine);
+  const [line, setLine] = useState(pickGuidingLine);
   const [mode, setMode] = useState<Mode>("idle");
   const [phase, setPhase] = useState<"in" | "out">("in");
 
@@ -49,6 +49,21 @@ export default function Arrive() {
     },
     [scale],
   );
+
+  // Returning to the app lands on a fresh, idle gate with a new guiding line.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        stopTick();
+        cancelAnimation(scale);
+        scale.value = 1;
+        setMode("idle");
+        setPhase("in");
+        setLine(pickGuidingLine());
+      }
+    });
+    return () => sub.remove();
+  }, [scale]);
 
   const onPressIn = () => {
     startRef.current = Date.now();
