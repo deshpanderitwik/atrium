@@ -16,23 +16,23 @@ import { haptics } from "@/lib/haptics";
 import { pickGuidingLine } from "@/lib/guidance";
 import { useBreathAudio } from "@/lib/useBreathAudio";
 
-type Mode = "idle" | "breathing" | "choose";
 const INHALE_MS = 4000;
 const EXHALE_MS = 6000;
 const CYCLE_MS = INHALE_MS + EXHALE_MS;
 
-// Arrive — the new root. Guiding text pulls you to the body; press and hold the
-// orb to breathe (4 in / 6 out) for as long as you like; on release, choose to
-// reflect or to perform a task.
+// Arrive — the single home screen. Guiding text, a press-and-hold breath orb
+// (4 in / 6 out with plucks), and the two paths + reflections entry, all at
+// once. The breath is available but never gates anything.
 export default function Arrive() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [line, setLine] = useState(pickGuidingLine);
-  const [mode, setMode] = useState<Mode>("idle");
+  const [breathing, setBreathing] = useState(false);
   const [phase, setPhase] = useState<"in" | "out">("in");
 
   const scale = useSharedValue(1);
   const startRef = useRef(0);
+  const heldRef = useRef(0);
   const phaseRef = useRef<"in" | "out">("in");
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const breathAudio = useBreathAudio();
@@ -52,7 +52,7 @@ export default function Arrive() {
     [scale],
   );
 
-  // Returning to the app lands on a fresh, idle gate with a new guiding line.
+  // Returning to the app resets a fresh, settled gate with a new guiding line.
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
@@ -60,7 +60,7 @@ export default function Arrive() {
         breathAudio.stop();
         cancelAnimation(scale);
         scale.value = 1;
-        setMode("idle");
+        setBreathing(false);
         setPhase("in");
         setLine(pickGuidingLine());
       }
@@ -72,7 +72,7 @@ export default function Arrive() {
     startRef.current = Date.now();
     phaseRef.current = "in";
     setPhase("in");
-    setMode("breathing");
+    setBreathing(true);
     haptics.light();
     breathAudio.start();
     scale.value = withRepeat(
@@ -98,17 +98,19 @@ export default function Arrive() {
   const onPressOut = () => {
     stopTick();
     breathAudio.stop();
+    heldRef.current = Math.round((Date.now() - startRef.current) / 1000);
     cancelAnimation(scale);
     scale.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) });
-    setMode("choose");
+    setBreathing(false);
   };
 
-  const orbLabel = mode === "breathing" ? phase : "arrive";
   const orbStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   const goReflect = () => {
-    const held = Math.round((Date.now() - startRef.current) / 1000);
-    router.push({ pathname: "/reflect", params: { held: String(held) } });
+    const held = heldRef.current;
+    router.push(
+      held > 0 ? { pathname: "/reflect", params: { held: String(held) } } : "/reflect",
+    );
   };
 
   return (
@@ -118,15 +120,15 @@ export default function Arrive() {
         backgroundColor: colors.paper,
         paddingHorizontal: 32,
         paddingTop: insets.top,
-        paddingBottom: insets.bottom + 24,
+        paddingBottom: insets.bottom + 20,
       }}
     >
       {/* Guiding text */}
-      <View style={{ flex: 1, justifyContent: "flex-end", alignItems: "center" }}>
+      <View style={{ flex: 1.1, justifyContent: "flex-end", alignItems: "center" }}>
         <Text
           style={{
             ...garamond.italic(23),
-            color: mode === "breathing" ? colors.inkFaint : colors.ink,
+            color: breathing ? colors.inkFaint : colors.ink,
             textAlign: "center",
             lineHeight: 32,
           }}
@@ -135,15 +137,15 @@ export default function Arrive() {
         </Text>
       </View>
 
-      {/* Breath orb / press-and-hold target */}
-      <View style={{ flex: 1.4, alignItems: "center", justifyContent: "center" }}>
+      {/* Breath orb */}
+      <View style={{ alignItems: "center", justifyContent: "center", paddingTop: 44, paddingBottom: 20 }}>
         <Pressable onPressIn={onPressIn} onPressOut={onPressOut} hitSlop={24}>
           <Animated.View
             style={[
               {
-                width: 150,
-                height: 150,
-                borderRadius: 75,
+                width: 140,
+                height: 140,
+                borderRadius: 70,
                 borderWidth: 1.5,
                 borderColor: colors.oxblood,
                 alignItems: "center",
@@ -153,40 +155,31 @@ export default function Arrive() {
               orbStyle,
             ]}
           >
-            <Text style={{ ...mono(13, 4), color: colors.ink }}>{orbLabel}</Text>
+            <Text style={{ ...mono(13, 4), color: colors.ink }}>
+              {breathing ? phase : "arrive"}
+            </Text>
           </Animated.View>
         </Pressable>
-
-        {/* Reserve the hint's space always so the orb never reflows/nudges. */}
         <Text
-          style={{
-            ...mono(10, 2),
-            color: colors.inkFaint,
-            marginTop: 28,
-            opacity: mode === "idle" ? 1 : 0,
-          }}
+          style={{ ...mono(10, 2), color: colors.inkFaint, marginTop: 20, opacity: breathing ? 0 : 1 }}
         >
           press · hold · breathe
         </Text>
       </View>
 
-      {/* Choices (after release) + a quiet entry to past reflections */}
-      <View style={{ flex: 1, justifyContent: "flex-start", alignItems: "center" }}>
-        {mode === "choose" ? (
-          <View style={{ width: "100%", alignItems: "center", gap: 14 }}>
-            <ChoiceButton label="reflect" onPress={goReflect} />
-            <ChoiceButton label="perform a task" onPress={() => router.push("/atrium")} />
-          </View>
-        ) : null}
-        {mode !== "breathing" ? (
-          <Pressable
-            onPress={() => router.push("/reflections")}
-            hitSlop={12}
-            style={{ position: "absolute", bottom: 0 }}
-          >
-            <Text style={{ ...mono(10, 3), color: colors.inkFaint }}>reflections</Text>
-          </Pressable>
-        ) : null}
+      {/* Actions + reflections entry */}
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "flex-start", paddingTop: 8 }}>
+        <View style={{ width: "100%", alignItems: "center", gap: 12 }}>
+          <ChoiceButton label="reflect" onPress={goReflect} />
+          <ChoiceButton label="perform a task" onPress={() => router.push("/atrium")} />
+        </View>
+        <Pressable
+          onPress={() => router.push("/reflections")}
+          hitSlop={12}
+          style={{ position: "absolute", bottom: 0 }}
+        >
+          <Text style={{ ...mono(10, 3), color: colors.inkFaint }}>reflections</Text>
+        </Pressable>
       </View>
     </View>
   );
