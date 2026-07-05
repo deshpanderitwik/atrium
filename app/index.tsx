@@ -47,7 +47,6 @@ export default function Arrive() {
 
   const scale = useSharedValue(1);
   const startRef = useRef(0);
-  const heldRef = useRef(0);
   const beatRef = useRef(0);
   const holdingRef = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -221,7 +220,6 @@ export default function Arrive() {
     holdingRef.current = false;
     stopTick();
     breathAudio.stop();
-    heldRef.current = Math.round((Date.now() - startRef.current) / 1000);
     stopBreathAnim();
     setBreathing(false);
   };
@@ -270,10 +268,7 @@ export default function Arrive() {
   const orbStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   const goReflect = () => {
-    const held = heldRef.current;
-    router.push(
-      held > 0 ? { pathname: "/reflect", params: { held: String(held) } } : "/reflect",
-    );
+    router.push("/reflect");
   };
 
   return (

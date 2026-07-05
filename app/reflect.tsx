@@ -7,7 +7,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, garamond, mono } from "@/theme";
 import { haptics } from "@/lib/haptics";
@@ -19,7 +19,6 @@ import { useReflections } from "@/db/reflections";
 export default function Reflect() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { held } = useLocalSearchParams<{ held?: string }>();
   const { getDraft, saveDraft, clearDraft, submitReflection } = useReflections();
 
   const [text, setText] = useState("");
@@ -63,7 +62,7 @@ export default function Reflect() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     const t = text.trim();
     if (t) {
-      await submitReflection(t, held ? Number(held) : null);
+      await submitReflection(t);
       haptics.success();
     } else {
       await clearDraft();

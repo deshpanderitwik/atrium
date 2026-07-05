@@ -41,16 +41,9 @@ export default function ReflectionView() {
         </Pressable>
       </View>
 
-      <Text style={{ ...mono(10, 2), color: colors.inkFaint, marginBottom: 4 }}>
+      <Text style={{ ...mono(10, 2), color: colors.inkFaint, marginBottom: 24 }}>
         {dayLabel(startOfDay(reflection.createdAt))} · {timeOfDay(reflection.createdAt)}
       </Text>
-      {reflection.heldSeconds ? (
-        <Text style={{ ...mono(9, 1), color: colors.inkFaint, marginBottom: 20 }}>
-          breathed {reflection.heldSeconds}s
-        </Text>
-      ) : (
-        <View style={{ height: 20 }} />
-      )}
 
       <Text style={{ ...garamond.regular(20), color: colors.ink, lineHeight: 31 }}>
         {reflection.body}
