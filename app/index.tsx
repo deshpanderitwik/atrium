@@ -407,7 +407,6 @@ export default function Arrive() {
                 marginBottom: 26,
               }}
             >
-              <Text style={{ ...mono(11, 2), color: colors.inkFaint }}>silent</Text>
               <View
                 style={{
                   width: 40,
@@ -430,6 +429,7 @@ export default function Arrive() {
                   }}
                 />
               </View>
+              <Text style={{ ...mono(11, 2), color: colors.inkFaint }}>silent</Text>
             </Pressable>
 
             <Pressable
