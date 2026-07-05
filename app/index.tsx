@@ -170,14 +170,15 @@ export default function Arrive() {
         </Text>
       </View>
 
-      {/* Choices (after release) / quiet entry to past reflections (idle) */}
+      {/* Choices (after release) + a quiet entry to past reflections */}
       <View style={{ flex: 1, justifyContent: "flex-start", alignItems: "center" }}>
         {mode === "choose" ? (
           <View style={{ width: "100%", alignItems: "center", gap: 14 }}>
             <ChoiceButton label="reflect" onPress={goReflect} />
             <ChoiceButton label="perform a task" onPress={() => router.push("/atrium")} />
           </View>
-        ) : mode === "idle" ? (
+        ) : null}
+        {mode !== "breathing" ? (
           <Pressable
             onPress={() => router.push("/reflections")}
             hitSlop={12}
