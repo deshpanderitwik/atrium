@@ -27,6 +27,8 @@ export default function Reflect() {
   const textRef = useRef("");
   textRef.current = text;
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Once kept or discarded, don't let unmount re-save the text as a draft.
+  const finalizedRef = useRef(false);
 
   // Resume any existing draft.
   useEffect(() => {
@@ -47,15 +49,18 @@ export default function Reflect() {
     };
   }, [text, loaded, saveDraft]);
 
-  // Leaving the writer (back-swipe, background) keeps the draft.
+  // Leaving the writer (back-swipe, background) keeps the draft — unless it was
+  // already kept or discarded.
   useEffect(
     () => () => {
-      saveDraft(textRef.current);
+      if (!finalizedRef.current) saveDraft(textRef.current);
     },
     [saveDraft],
   );
 
   const keep = async () => {
+    finalizedRef.current = true;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
     const t = text.trim();
     if (t) {
       await submitReflection(t, held ? Number(held) : null);
@@ -67,8 +72,10 @@ export default function Reflect() {
   };
 
   const discard = async () => {
-    await clearDraft();
+    finalizedRef.current = true;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
     textRef.current = "";
+    await clearDraft();
     haptics.warning();
     router.back();
   };
