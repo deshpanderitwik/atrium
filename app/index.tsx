@@ -21,6 +21,11 @@ const EXHALE_MS = 6000;
 const BREATH_SECONDS = 60; // 6 breath cycles of audio
 const PERIOD_SECONDS = 70; // + a 10s rest
 
+// The heard audio trails its reported playback position by the device's output
+// latency, so after calibration the tap still lands slightly early. This trim
+// delays the haptic grid to compensate — tune to taste.
+const HAPTIC_TRIM_MS = 70;
+
 type Phase = "in" | "out" | "rest";
 
 // Arrive — the single home screen. Guiding text, a press-and-hold breath orb
@@ -60,7 +65,7 @@ export default function Arrive() {
       const pos = await breathAudio.getPositionMillis();
       const after = Date.now();
       if (!holdingRef.current || pos == null || pos <= 0) return;
-      const audioStart = after - pos;
+      const audioStart = after - pos + HAPTIC_TRIM_MS;
       // only apply a sane correction
       if (Math.abs(audioStart - startRef.current) < 500) {
         startRef.current = audioStart;
@@ -141,7 +146,7 @@ export default function Arrive() {
   );
 
   const onPressIn = () => {
-    startRef.current = Date.now();
+    startRef.current = Date.now() + HAPTIC_TRIM_MS;
     holdingRef.current = true;
     setPhase("in");
     setBreathing(true);
