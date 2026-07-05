@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Audio } from "expo-av";
 
-// Sine plucks that follow the 4-in / 6-out breath: a root F on each second of
-// the inhale, and the fifth an octave below (C) on each second of the exhale.
-const INHALE_MS = 4000;
-const CYCLE_MS = 10000;
+// Sine plucks on a fixed 1-second grid following the 4-in / 6-out breath.
+// Beats 0–3 of each 10-beat cycle are the root F (inhale); beats 4–9 are the
+// fifth an octave below, C (exhale).
+const INHALE_BEATS = 4;
+const CYCLE_BEATS = 10;
 
 export function useBreathAudio() {
   const fRef = useRef<Audio.Sound | null>(null);
   const cRef = useRef<Audio.Sound | null>(null);
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startRef = useRef(0);
+  const beatRef = useRef(0);
 
   useEffect(() => {
     let mounted = true;
@@ -32,7 +34,7 @@ export function useBreathAudio() {
     })();
     return () => {
       mounted = false;
-      if (tickRef.current) clearInterval(tickRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       fRef.current?.unloadAsync();
       cRef.current?.unloadAsync();
     };
@@ -40,23 +42,31 @@ export function useBreathAudio() {
 
   const pluck = useCallback((which: "f" | "c") => {
     const s = which === "f" ? fRef.current : cRef.current;
-    s?.replayAsync().catch(() => {});
+    // set position to 0 then play — lower, more consistent latency than replay
+    s?.setStatusAsync({ shouldPlay: true, positionMillis: 0 }).catch(() => {});
   }, []);
 
   const start = useCallback(() => {
-    if (tickRef.current) clearInterval(tickRef.current);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     startRef.current = Date.now();
-    pluck("f"); // first inhale beat at t=0
-    tickRef.current = setInterval(() => {
-      const elapsed = (Date.now() - startRef.current) % CYCLE_MS;
-      pluck(elapsed < INHALE_MS ? "f" : "c");
-    }, 1000);
+    beatRef.current = 0;
+    // Self-correcting scheduler: each beat targets an absolute grid time
+    // (start + n×1000), so timer drift can never accumulate.
+    const tick = () => {
+      const beat = beatRef.current;
+      pluck(beat % CYCLE_BEATS < INHALE_BEATS ? "f" : "c");
+      beatRef.current = beat + 1;
+      const nextAt = startRef.current + beatRef.current * 1000;
+      const delay = Math.max(0, nextAt - Date.now());
+      timeoutRef.current = setTimeout(tick, delay);
+    };
+    tick(); // beat 0 fires immediately, on the press
   }, [pluck]);
 
   const stop = useCallback(() => {
-    if (tickRef.current) {
-      clearInterval(tickRef.current);
-      tickRef.current = null;
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
     // let the last pluck ring out
   }, []);
