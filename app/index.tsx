@@ -120,26 +120,22 @@ export default function Arrive() {
     (b: number) => {
       const pos = b % PERIOD_SECONDS; // 0..69
       if (pos < BREATH_SECONDS) {
+        // Breath: drive the visual phase only — no haptics during breathing.
         const local = pos % 10;
         if (pos === 0) {
           setPhase("in");
-          if (b > 0) {
-            startBreathAnim(); // breath resumes after a rest
-            haptics.soft();
-          }
+          if (b > 0) startBreathAnim(); // breath resumes after a rest
         } else if (local === 0) {
           setPhase("in");
-          haptics.soft(); // exhale → inhale
         } else if (local === 4) {
           setPhase("out");
-          haptics.soft(); // inhale → exhale
         }
       } else {
         if (pos === BREATH_SECONDS) {
           setPhase("rest");
           stopBreathAnim();
         }
-        haptics.light(); // mark each rest second
+        haptics.light(); // haptics only mark the rest seconds
       }
     },
     [startBreathAnim, stopBreathAnim],
@@ -150,7 +146,6 @@ export default function Arrive() {
     holdingRef.current = true;
     setPhase("in");
     setBreathing(true);
-    haptics.light();
     breathAudio.start();
     startBreathAnim();
     calibrateToAudio();
