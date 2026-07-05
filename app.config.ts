@@ -9,7 +9,7 @@ const config: ExpoConfig = {
   slug: "atrium",
   owner: "ritwikdesh",
   scheme: "atrium",
-  version: "0.1.0",
+  version: "0.2.0",
   orientation: "portrait",
   userInterfaceStyle: "dark",
   newArchEnabled: true,
@@ -20,6 +20,7 @@ const config: ExpoConfig = {
   ios: {
     bundleIdentifier: "com.ritwikdeshpande.atrium",
     supportsTablet: false,
+    buildNumber: "2",
     infoPlist: {
       UIUserInterfaceStyle: "Dark",
       // App uses only standard HTTPS (exempt) — no custom/non-exempt crypto.

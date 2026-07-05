@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, garamond, mono } from "@/theme";
 import { haptics } from "@/lib/haptics";
 import { pickGuidingLine } from "@/lib/guidance";
+import { useBreathAudio } from "@/lib/useBreathAudio";
 
 type Mode = "idle" | "breathing" | "choose";
 const INHALE_MS = 4000;
@@ -34,6 +35,7 @@ export default function Arrive() {
   const startRef = useRef(0);
   const phaseRef = useRef<"in" | "out">("in");
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const breathAudio = useBreathAudio();
 
   const stopTick = () => {
     if (tickRef.current) {
@@ -55,6 +57,7 @@ export default function Arrive() {
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         stopTick();
+        breathAudio.stop();
         cancelAnimation(scale);
         scale.value = 1;
         setMode("idle");
@@ -71,6 +74,7 @@ export default function Arrive() {
     setPhase("in");
     setMode("breathing");
     haptics.light();
+    breathAudio.start();
     scale.value = withRepeat(
       withSequence(
         withTiming(1.5, { duration: INHALE_MS, easing: Easing.inOut(Easing.ease) }),
@@ -93,6 +97,7 @@ export default function Arrive() {
 
   const onPressOut = () => {
     stopTick();
+    breathAudio.stop();
     cancelAnimation(scale);
     scale.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) });
     setMode("choose");
