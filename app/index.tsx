@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Pressable, Text, View } from "react-native";
 import Animated, {
   Easing,
@@ -18,7 +18,10 @@ import { useBreathAudio } from "@/lib/useBreathAudio";
 
 const INHALE_MS = 4000;
 const EXHALE_MS = 6000;
-const CYCLE_MS = INHALE_MS + EXHALE_MS;
+const BREATH_SECONDS = 60; // 6 breath cycles of audio
+const PERIOD_SECONDS = 70; // + a 10s rest
+
+type Phase = "in" | "out" | "rest";
 
 // Arrive — the single home screen. Guiding text, a press-and-hold breath orb
 // (4 in / 6 out with plucks), and the two paths + reflections entry, all at
@@ -28,21 +31,37 @@ export default function Arrive() {
   const insets = useSafeAreaInsets();
   const [line, setLine] = useState(pickGuidingLine);
   const [breathing, setBreathing] = useState(false);
-  const [phase, setPhase] = useState<"in" | "out">("in");
+  const [phase, setPhase] = useState<Phase>("in");
 
   const scale = useSharedValue(1);
   const startRef = useRef(0);
   const heldRef = useRef(0);
-  const phaseRef = useRef<"in" | "out">("in");
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const beatRef = useRef(0);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const breathAudio = useBreathAudio();
 
   const stopTick = () => {
-    if (tickRef.current) {
-      clearInterval(tickRef.current);
-      tickRef.current = null;
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
   };
+
+  const startBreathAnim = useCallback(() => {
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.5, { duration: INHALE_MS, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: EXHALE_MS, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      false,
+    );
+  }, [scale]);
+
+  const stopBreathAnim = useCallback(() => {
+    cancelAnimation(scale);
+    scale.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) });
+  }, [scale]);
 
   useEffect(
     () => () => {
@@ -68,39 +87,59 @@ export default function Arrive() {
     return () => sub.remove();
   }, [scale]);
 
+  // One self-correcting beat per second across the 70s period: breath-phase
+  // haptics during the 60s of breathing, a tap on each of the 10 rest seconds.
+  const handleBeat = useCallback(
+    (b: number) => {
+      const pos = b % PERIOD_SECONDS; // 0..69
+      if (pos < BREATH_SECONDS) {
+        const local = pos % 10;
+        if (pos === 0) {
+          setPhase("in");
+          if (b > 0) {
+            startBreathAnim(); // breath resumes after a rest
+            haptics.soft();
+          }
+        } else if (local === 0) {
+          setPhase("in");
+          haptics.soft(); // exhale → inhale
+        } else if (local === 4) {
+          setPhase("out");
+          haptics.soft(); // inhale → exhale
+        }
+      } else {
+        if (pos === BREATH_SECONDS) {
+          setPhase("rest");
+          stopBreathAnim();
+        }
+        haptics.light(); // mark each rest second
+      }
+    },
+    [startBreathAnim, stopBreathAnim],
+  );
+
   const onPressIn = () => {
     startRef.current = Date.now();
-    phaseRef.current = "in";
     setPhase("in");
     setBreathing(true);
     haptics.light();
     breathAudio.start();
-    scale.value = withRepeat(
-      withSequence(
-        withTiming(1.5, { duration: INHALE_MS, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: EXHALE_MS, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1,
-      false,
-    );
-    stopTick();
-    tickRef.current = setInterval(() => {
-      const elapsed = (Date.now() - startRef.current) % CYCLE_MS;
-      const next = elapsed < INHALE_MS ? "in" : "out";
-      if (next !== phaseRef.current) {
-        phaseRef.current = next;
-        setPhase(next);
-        haptics.soft();
-      }
-    }, 150);
+    startBreathAnim();
+    beatRef.current = 0;
+    const tick = () => {
+      handleBeat(beatRef.current);
+      beatRef.current += 1;
+      const nextAt = startRef.current + beatRef.current * 1000;
+      timeoutRef.current = setTimeout(tick, Math.max(0, nextAt - Date.now()));
+    };
+    tick(); // beat 0 fires immediately (start of the inhale)
   };
 
   const onPressOut = () => {
     stopTick();
     breathAudio.stop();
     heldRef.current = Math.round((Date.now() - startRef.current) / 1000);
-    cancelAnimation(scale);
-    scale.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) });
+    stopBreathAnim();
     setBreathing(false);
   };
 
