@@ -1,57 +1,177 @@
-import React from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Pressable, Text, View } from "react-native";
+import Animated, {
+  Easing,
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, garamond } from "@/theme";
-import { HOUSES } from "@/houses";
-import { useTodos } from "@/db/store";
-import { activeCountForHouse } from "@/db/selectors";
-import { HouseDoor } from "@/components/HouseDoor";
-import { StarredStrip } from "@/components/StarredStrip";
+import { colors, garamond, mono } from "@/theme";
+import { haptics } from "@/lib/haptics";
+import { pickGuidingLine } from "@/lib/guidance";
 
-// Ported from AtriumView.swift — the home "atrium": tagline, starred strip,
-// the twelve doors, a quiet footer.
-export default function Atrium() {
+type Mode = "idle" | "breathing" | "choose";
+const INHALE_MS = 4000;
+const EXHALE_MS = 6000;
+const CYCLE_MS = INHALE_MS + EXHALE_MS;
+
+// Arrive — the new root. Guiding text pulls you to the body; press and hold the
+// orb to breathe (4 in / 6 out) for as long as you like; on release, choose to
+// reflect or to perform a task.
+export default function Arrive() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { todos } = useTodos();
+  const [line] = useState(pickGuidingLine);
+  const [mode, setMode] = useState<Mode>("idle");
+  const [phase, setPhase] = useState<"in" | "out">("in");
+
+  const scale = useSharedValue(1);
+  const startRef = useRef(0);
+  const phaseRef = useRef<"in" | "out">("in");
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopTick = () => {
+    if (tickRef.current) {
+      clearInterval(tickRef.current);
+      tickRef.current = null;
+    }
+  };
+
+  useEffect(
+    () => () => {
+      stopTick();
+      cancelAnimation(scale);
+    },
+    [scale],
+  );
+
+  const onPressIn = () => {
+    startRef.current = Date.now();
+    phaseRef.current = "in";
+    setPhase("in");
+    setMode("breathing");
+    haptics.light();
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.5, { duration: INHALE_MS, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1, { duration: EXHALE_MS, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      false,
+    );
+    stopTick();
+    tickRef.current = setInterval(() => {
+      const elapsed = (Date.now() - startRef.current) % CYCLE_MS;
+      const next = elapsed < INHALE_MS ? "in" : "out";
+      if (next !== phaseRef.current) {
+        phaseRef.current = next;
+        setPhase(next);
+        haptics.soft();
+      }
+    }, 150);
+  };
+
+  const onPressOut = () => {
+    stopTick();
+    cancelAnimation(scale);
+    scale.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) });
+    setMode("choose");
+  };
+
+  const orbLabel = mode === "breathing" ? phase : "arrive";
+  const orbStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const goReflect = () => {
+    const held = Math.round((Date.now() - startRef.current) / 1000);
+    router.push({ pathname: "/reflect", params: { held: String(held) } });
+  };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.paper }}
-      contentContainerStyle={{ paddingHorizontal: 28 }}
-      showsVerticalScrollIndicator={false}
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.paper,
+        paddingHorizontal: 32,
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom + 24,
+      }}
     >
-      {/* Header */}
-      <View style={{ alignItems: "center", paddingTop: insets.top + 64, paddingBottom: 40 }}>
+      {/* Guiding text */}
+      <View style={{ flex: 1, justifyContent: "flex-end", alignItems: "center" }}>
         <Text
           style={{
-            ...garamond.italic(26),
-            color: colors.ink,
+            ...garamond.italic(23),
+            color: mode === "breathing" ? colors.inkFaint : colors.ink,
             textAlign: "center",
-            lineHeight: 34,
-            paddingHorizontal: 24,
+            lineHeight: 32,
           }}
         >
-          tend each house in its own time
+          {line}
         </Text>
-        <View
-          style={{ width: 1, height: 40, backgroundColor: colors.rule, marginTop: 28 }}
-        />
       </View>
 
-      <StarredStrip />
-
-      {HOUSES.map((house) => (
-        <Pressable key={house.id} onPress={() => router.push(`/house/${house.id}`)}>
-          <HouseDoor house={house} openCount={activeCountForHouse(todos, house.id)} />
+      {/* Breath orb / press-and-hold target */}
+      <View style={{ flex: 1.4, alignItems: "center", justifyContent: "center" }}>
+        <Pressable onPressIn={onPressIn} onPressOut={onPressOut} hitSlop={24}>
+          <Animated.View
+            style={[
+              {
+                width: 150,
+                height: 150,
+                borderRadius: 75,
+                borderWidth: 1.5,
+                borderColor: colors.oxblood,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: colors.paperWarm,
+              },
+              orbStyle,
+            ]}
+          >
+            <Text style={{ ...mono(13, 4), color: colors.ink }}>{orbLabel}</Text>
+          </Animated.View>
         </Pressable>
-      ))}
 
-      {/* Footer */}
-      <View style={{ alignItems: "center", paddingTop: 56, paddingBottom: insets.bottom + 48 }}>
-        <Text style={{ ...garamond.regular(20), color: colors.inkFaint }}>·</Text>
+        {mode === "idle" ? (
+          <Text style={{ ...mono(10, 2), color: colors.inkFaint, marginTop: 28 }}>
+            press · hold · breathe
+          </Text>
+        ) : null}
       </View>
-    </ScrollView>
+
+      {/* Choices (after release) */}
+      <View style={{ flex: 1, justifyContent: "flex-start", alignItems: "center" }}>
+        {mode === "choose" ? (
+          <View style={{ width: "100%", alignItems: "center", gap: 14 }}>
+            <ChoiceButton label="reflect" onPress={goReflect} />
+            <ChoiceButton label="perform a task" onPress={() => router.push("/atrium")} />
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function ChoiceButton({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        width: "100%",
+        maxWidth: 280,
+        borderWidth: 1,
+        borderColor: colors.rule,
+        borderRadius: 10,
+        paddingVertical: 16,
+        alignItems: "center",
+      }}
+    >
+      <Text style={{ ...mono(12, 3), color: colors.ink }}>{label}</Text>
+    </Pressable>
   );
 }

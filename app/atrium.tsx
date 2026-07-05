@@ -1,0 +1,62 @@
+import React from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { colors, garamond, mono } from "@/theme";
+import { HOUSES } from "@/houses";
+import { useTodos } from "@/db/store";
+import { activeCountForHouse } from "@/db/selectors";
+import { HouseDoor } from "@/components/HouseDoor";
+import { StarredStrip } from "@/components/StarredStrip";
+
+// The house list — reached from Arrive via "perform a task".
+export default function Atrium() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { todos } = useTodos();
+
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.paper }}
+      contentContainerStyle={{ paddingHorizontal: 28 }}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={{ paddingTop: insets.top + 24 }}>
+        <Pressable onPress={() => router.back()} hitSlop={8}>
+          <Text style={{ ...mono(11, 3), color: colors.inkFaint }}>← arrive</Text>
+        </Pressable>
+      </View>
+
+      {/* Header */}
+      <View style={{ alignItems: "center", paddingTop: 40, paddingBottom: 40 }}>
+        <Text
+          style={{
+            ...garamond.italic(26),
+            color: colors.ink,
+            textAlign: "center",
+            lineHeight: 34,
+            paddingHorizontal: 24,
+          }}
+        >
+          tend each house in its own time
+        </Text>
+        <View
+          style={{ width: 1, height: 40, backgroundColor: colors.rule, marginTop: 28 }}
+        />
+      </View>
+
+      <StarredStrip />
+
+      {HOUSES.map((house) => (
+        <Pressable key={house.id} onPress={() => router.push(`/house/${house.id}`)}>
+          <HouseDoor house={house} openCount={activeCountForHouse(todos, house.id)} />
+        </Pressable>
+      ))}
+
+      {/* Footer */}
+      <View style={{ alignItems: "center", paddingTop: 56, paddingBottom: insets.bottom + 48 }}>
+        <Text style={{ ...garamond.regular(20), color: colors.inkFaint }}>·</Text>
+      </View>
+    </ScrollView>
+  );
+}
