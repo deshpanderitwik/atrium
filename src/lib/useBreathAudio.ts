@@ -39,5 +39,17 @@ export function useBreathAudio() {
     soundRef.current?.setStatusAsync({ shouldPlay: false }).catch(() => {});
   }, []);
 
-  return { start, stop };
+  // Current playback position in ms — used to align the haptic clock to the
+  // audio's true onset (accounts for output latency).
+  const getPositionMillis = useCallback(async (): Promise<number | null> => {
+    try {
+      const s = await soundRef.current?.getStatusAsync();
+      if (s && "isLoaded" in s && s.isLoaded) return s.positionMillis ?? null;
+    } catch {
+      // ignore
+    }
+    return null;
+  }, []);
+
+  return { start, stop, getPositionMillis };
 }

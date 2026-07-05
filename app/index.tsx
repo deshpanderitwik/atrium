@@ -37,7 +37,9 @@ export default function Arrive() {
   const startRef = useRef(0);
   const heldRef = useRef(0);
   const beatRef = useRef(0);
+  const holdingRef = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const calibRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const breathAudio = useBreathAudio();
 
   const stopTick = () => {
@@ -45,6 +47,25 @@ export default function Arrive() {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+    if (calibRef.current) {
+      clearTimeout(calibRef.current);
+      calibRef.current = null;
+    }
+  };
+
+  // Shift the beat grid so it lands on the audio's true onset rather than the
+  // press moment (audio has output latency; haptics don't).
+  const calibrateToAudio = () => {
+    calibRef.current = setTimeout(async () => {
+      const pos = await breathAudio.getPositionMillis();
+      const after = Date.now();
+      if (!holdingRef.current || pos == null || pos <= 0) return;
+      const audioStart = after - pos;
+      // only apply a sane correction
+      if (Math.abs(audioStart - startRef.current) < 500) {
+        startRef.current = audioStart;
+      }
+    }, 350);
   };
 
   const startBreathAnim = useCallback(() => {
@@ -75,6 +96,7 @@ export default function Arrive() {
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
+        holdingRef.current = false;
         stopTick();
         breathAudio.stop();
         cancelAnimation(scale);
@@ -120,11 +142,13 @@ export default function Arrive() {
 
   const onPressIn = () => {
     startRef.current = Date.now();
+    holdingRef.current = true;
     setPhase("in");
     setBreathing(true);
     haptics.light();
     breathAudio.start();
     startBreathAnim();
+    calibrateToAudio();
     beatRef.current = 0;
     const tick = () => {
       handleBeat(beatRef.current);
@@ -136,6 +160,7 @@ export default function Arrive() {
   };
 
   const onPressOut = () => {
+    holdingRef.current = false;
     stopTick();
     breathAudio.stop();
     heldRef.current = Math.round((Date.now() - startRef.current) / 1000);
