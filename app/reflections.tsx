@@ -6,7 +6,6 @@ import { colors, garamond, mono } from "@/theme";
 import { useReflections, Reflection } from "@/db/reflections";
 import { startOfDay } from "@/lib/cadence";
 import { dayLabel } from "@/db/selectors";
-import { DayHeader } from "@/components/DayHeader";
 
 const timeOfDay = (ms: number) =>
   new Date(ms)
@@ -57,7 +56,16 @@ export default function Reflections() {
       ) : (
         groups.map((group) => (
           <View key={group.day}>
-            <DayHeader day={group.day} />
+            <Text
+              style={{
+                ...garamond.italic(16),
+                color: colors.inkFaint,
+                paddingTop: 16,
+                paddingBottom: 6,
+              }}
+            >
+              {dayLabel(group.day)}
+            </Text>
             {group.items.map((r) => (
               <Pressable
                 key={r.id}
