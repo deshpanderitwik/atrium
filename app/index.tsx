@@ -43,6 +43,7 @@ export default function Arrive() {
   const [phase, setPhase] = useState<Phase>("in");
   const [roundsModal, setRoundsModal] = useState(false);
   const [rounds, setRounds] = useState(3);
+  const [silent, setSilent] = useState(false);
 
   const scale = useSharedValue(1);
   const startRef = useRef(0);
@@ -59,6 +60,7 @@ export default function Arrive() {
   const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTapRef = useRef(0);
   const roundsLimitRef = useRef<number | null>(null);
+  const silentRef = useRef(false);
   const breathAudio = useBreathAudio();
 
   const stopTick = () => {
@@ -125,6 +127,7 @@ export default function Arrive() {
         pressedRef.current = false;
         lastTapRef.current = 0;
         roundsLimitRef.current = null;
+        silentRef.current = false;
         stopTick();
         breathAudio.stop();
         cancelAnimation(scale);
@@ -143,8 +146,8 @@ export default function Arrive() {
   const handleBeat = useCallback(
     (b: number) => {
       const pos = b % PERIOD_SECONDS; // 0..69
+      const silentMode = silentRef.current;
       if (pos < BREATH_SECONDS) {
-        // Breath: drive the visual phase only — no haptics during breathing.
         const local = pos % 10;
         if (pos === 0) {
           setPhase("in");
@@ -154,14 +157,19 @@ export default function Arrive() {
         } else if (local === 4) {
           setPhase("out");
         }
+        // Silent mode marks every breath second by touch: firm/sharp on the
+        // inhale, soft on the exhale. Audio mode uses the plucks (no haptics).
+        if (silentMode) {
+          if (local < 4) haptics.rigid();
+          else haptics.soft();
+        }
       } else {
         if (pos === BREATH_SECONDS) {
           setPhase("rest");
           stopBreathAnim();
         }
-        // Firm impact — a Light impact from the idle Taptic engine (after 60s of
-        // silent breathing) is often dropped/imperceptible.
-        haptics.rigid();
+        // Audio mode taps out the rest seconds; silent mode's rest is fully quiet.
+        if (!silentMode) haptics.rigid();
       }
     },
     [startBreathAnim, stopBreathAnim],
@@ -169,16 +177,19 @@ export default function Arrive() {
 
   // rounds === null runs indefinitely; otherwise stop after that many rounds
   // (a round = one 70s period: 60s breath + 10s rest).
-  const startBreath = (roundsLimit: number | null) => {
+  const startBreath = (roundsLimit: number | null, silentMode: boolean) => {
+    silentRef.current = silentMode;
     breathingRef.current = true;
     roundsLimitRef.current = roundsLimit;
     startRef.current = Date.now() + HAPTIC_TRIM_MS;
     holdingRef.current = true;
     setPhase("in");
     setBreathing(true);
-    breathAudio.start();
+    if (!silentMode) {
+      breathAudio.start();
+      calibrateToAudio(); // only needed to sync haptics to audio
+    }
     startBreathAnim();
-    calibrateToAudio();
     beatRef.current = 0;
     const tick = () => {
       handleBeat(beatRef.current);
@@ -199,6 +210,7 @@ export default function Arrive() {
   const stopBreath = () => {
     breathingRef.current = false;
     roundsLimitRef.current = null;
+    silentRef.current = false;
     holdingRef.current = false;
     stopTick();
     breathAudio.stop();
@@ -236,7 +248,7 @@ export default function Arrive() {
     if (now - lastTapRef.current < DOUBLE_TAP_MS) {
       lastTapRef.current = 0;
       if (breathingRef.current) stopBreath();
-      else startBreath(null); // indefinite hands-free
+      else startBreath(null, false); // indefinite hands-free (audio)
     } else {
       lastTapRef.current = now;
     }
@@ -245,7 +257,7 @@ export default function Arrive() {
   const beginRounds = () => {
     setRoundsModal(false);
     modeRef.current = null;
-    startBreath(rounds);
+    startBreath(rounds, silent);
   };
 
   const orbStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -375,6 +387,37 @@ export default function Arrive() {
                 <Feather name="plus" size={22} color={colors.ink} />
               </Pressable>
             </View>
+
+            {/* Silent mode toggle — haptics-only breath, no audio */}
+            <Pressable
+              onPress={() => setSilent((s) => !s)}
+              hitSlop={8}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 10,
+                marginBottom: 26,
+              }}
+            >
+              <View
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: 4,
+                  borderWidth: 1,
+                  borderColor: colors.rule,
+                  backgroundColor: silent ? colors.oxblood : "transparent",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {silent ? <Feather name="check" size={12} color="#fff" /> : null}
+              </View>
+              <Text style={{ ...mono(11, 2), color: colors.inkFaint }}>
+                silent · haptics only
+              </Text>
+            </Pressable>
+
             <Pressable
               onPress={beginRounds}
               style={{
