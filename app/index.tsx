@@ -157,11 +157,18 @@ export default function Arrive() {
         } else if (local === 4) {
           setPhase("out");
         }
-        // Silent mode marks every breath second by touch: firm/sharp on the
-        // inhale, soft on the exhale. Audio mode uses the plucks (no haptics).
+        // Silent mode marks every breath second by touch: a firm double-tap on
+        // the inhale, a single soft tap on the exhale. Audio mode uses the
+        // plucks (no haptics).
         if (silentMode) {
-          if (local < 4) haptics.rigid();
-          else haptics.soft();
+          if (local < 4) {
+            haptics.rigid();
+            setTimeout(() => {
+              if (breathingRef.current && silentRef.current) haptics.rigid();
+            }, 90);
+          } else {
+            haptics.soft();
+          }
         }
       } else {
         if (pos === BREATH_SECONDS) {
