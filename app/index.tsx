@@ -159,7 +159,9 @@ export default function Arrive() {
           setPhase("rest");
           stopBreathAnim();
         }
-        haptics.light(); // haptics only mark the rest seconds
+        // Firm impact — a Light impact from the idle Taptic engine (after 60s of
+        // silent breathing) is often dropped/imperceptible.
+        haptics.rigid();
       }
     },
     [startBreathAnim, stopBreathAnim],
