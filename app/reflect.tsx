@@ -1,50 +1,127 @@
-import React from "react";
-import { Pressable, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, garamond, mono } from "@/theme";
+import { haptics } from "@/lib/haptics";
+import { useReflections } from "@/db/reflections";
 
-// Placeholder for Brick 1. Brick 2 adds the writing surface + timestamped
-// storage; Brick 3 adds the reflections log.
+// A calm, full-screen plain-text writing surface. The text is a persistent
+// draft: leaving keeps it, "keep" files it into the timeline, "discard" throws
+// it away.
 export default function Reflect() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { held } = useLocalSearchParams<{ held?: string }>();
+  const { getDraft, saveDraft, clearDraft, submitReflection } = useReflections();
+
+  const [text, setText] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const textRef = useRef("");
+  textRef.current = text;
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Resume any existing draft.
+  useEffect(() => {
+    (async () => {
+      const d = await getDraft();
+      setText(d);
+      setLoaded(true);
+    })();
+  }, [getDraft]);
+
+  // Debounced autosave while typing.
+  useEffect(() => {
+    if (!loaded) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => saveDraft(textRef.current), 400);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [text, loaded, saveDraft]);
+
+  // Leaving the writer (back-swipe, background) keeps the draft.
+  useEffect(
+    () => () => {
+      saveDraft(textRef.current);
+    },
+    [saveDraft],
+  );
+
+  const keep = async () => {
+    const t = text.trim();
+    if (t) {
+      await submitReflection(t, held ? Number(held) : null);
+      haptics.success();
+    } else {
+      await clearDraft();
+    }
+    router.back();
+  };
+
+  const discard = async () => {
+    await clearDraft();
+    textRef.current = "";
+    haptics.warning();
+    router.back();
+  };
+
+  if (!loaded) return <View style={{ flex: 1, backgroundColor: colors.paper }} />;
 
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: colors.paper,
-        paddingHorizontal: 32,
-        paddingTop: insets.top + 24,
-        paddingBottom: insets.bottom + 28,
-      }}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={{ flex: 1, backgroundColor: colors.paper }}
     >
-      <Pressable onPress={() => router.back()} hitSlop={8}>
-        <Text style={{ ...mono(11, 3), color: colors.inkFaint }}>← back</Text>
-      </Pressable>
-
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <Text
+      <View
+        style={{
+          flex: 1,
+          paddingHorizontal: 28,
+          paddingTop: insets.top + 14,
+          paddingBottom: insets.bottom + 10,
+        }}
+      >
+        <View
           style={{
-            ...garamond.italic(24),
-            color: colors.ink,
-            textAlign: "center",
-            lineHeight: 34,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingBottom: 20,
           }}
         >
-          what are you experiencing?
-        </Text>
-        <Text style={{ ...mono(10, 2), color: colors.inkFaint, marginTop: 24 }}>
-          a place to reflect · arriving next
-        </Text>
-        {held ? (
-          <Text style={{ ...mono(9, 1), color: colors.inkFaint, marginTop: 12 }}>
-            you breathed for {held}s
-          </Text>
-        ) : null}
+          <Pressable onPress={discard} hitSlop={10}>
+            <Text style={{ ...mono(11, 2), color: colors.inkFaint }}>discard</Text>
+          </Pressable>
+          <Pressable onPress={keep} hitSlop={10}>
+            <Text style={{ ...mono(11, 2), color: colors.ink }}>keep</Text>
+          </Pressable>
+        </View>
+
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          autoFocus
+          multiline
+          placeholder="what are you experiencing?"
+          placeholderTextColor={colors.inkFaint}
+          textAlignVertical="top"
+          scrollEnabled
+          style={{
+            flex: 1,
+            ...garamond.regular(20),
+            lineHeight: 31,
+            color: colors.ink,
+            padding: 0,
+          }}
+        />
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

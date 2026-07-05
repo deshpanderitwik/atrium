@@ -8,6 +8,7 @@ import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { colors } from "@/theme";
 import { TodosProvider } from "@/db/store";
+import { ReflectionsProvider } from "@/db/reflections";
 import { useOtaUpdates } from "@/lib/useOtaUpdates";
 import { useArriveOnResume } from "@/lib/useArriveOnResume";
 
@@ -34,15 +35,17 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>
       <SafeAreaProvider>
         <TodosProvider>
-          <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.paper },
-              animation: "slide_from_right",
-            }}
-          />
-          <BackgroundCover />
+          <ReflectionsProvider>
+            <StatusBar style="light" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.paper },
+                animation: "slide_from_right",
+              }}
+            />
+            <BackgroundCover />
+          </ReflectionsProvider>
         </TodosProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
