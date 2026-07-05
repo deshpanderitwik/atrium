@@ -26,6 +26,9 @@ const PERIOD_SECONDS = 70; // + a 10s rest
 // delays the haptic grid to compensate — tune to taste.
 const HAPTIC_TRIM_MS = 45;
 
+const HOLD_MS = 220; // a press sustained beyond this = hold-to-breathe
+const DOUBLE_TAP_MS = 300; // two taps within this = hands-free toggle
+
 type Phase = "in" | "out" | "rest";
 
 // Arrive — the single home screen. Guiding text, a press-and-hold breath orb
@@ -45,6 +48,12 @@ export default function Arrive() {
   const holdingRef = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const calibRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Gesture state: hold vs. double-tap (hands-free).
+  const modeRef = useRef<"hold" | "free" | null>(null);
+  const breathingRef = useRef(false);
+  const pressedRef = useRef(false);
+  const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTapRef = useRef(0);
   const breathAudio = useBreathAudio();
 
   const stopTick = () => {
@@ -55,6 +64,10 @@ export default function Arrive() {
     if (calibRef.current) {
       clearTimeout(calibRef.current);
       calibRef.current = null;
+    }
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
     }
   };
 
@@ -102,6 +115,10 @@ export default function Arrive() {
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         holdingRef.current = false;
+        breathingRef.current = false;
+        modeRef.current = null;
+        pressedRef.current = false;
+        lastTapRef.current = 0;
         stopTick();
         breathAudio.stop();
         cancelAnimation(scale);
@@ -141,7 +158,9 @@ export default function Arrive() {
     [startBreathAnim, stopBreathAnim],
   );
 
-  const onPressIn = () => {
+  const startBreath = (mode: "hold" | "free") => {
+    modeRef.current = mode;
+    breathingRef.current = true;
     startRef.current = Date.now() + HAPTIC_TRIM_MS;
     holdingRef.current = true;
     setPhase("in");
@@ -159,13 +178,47 @@ export default function Arrive() {
     tick(); // beat 0 fires immediately (start of the inhale)
   };
 
-  const onPressOut = () => {
+  const stopBreath = () => {
+    modeRef.current = null;
+    breathingRef.current = false;
     holdingRef.current = false;
     stopTick();
     breathAudio.stop();
     heldRef.current = Math.round((Date.now() - startRef.current) / 1000);
     stopBreathAnim();
     setBreathing(false);
+  };
+
+  // Press-and-hold breathes while held; a sustained press past HOLD_MS starts
+  // it, releasing stops it. A quick double-tap toggles a hands-free session.
+  const onPressIn = () => {
+    pressedRef.current = true;
+    if (!breathingRef.current) {
+      holdTimeoutRef.current = setTimeout(() => {
+        if (pressedRef.current && !breathingRef.current) startBreath("hold");
+      }, HOLD_MS);
+    }
+  };
+
+  const onPressOut = () => {
+    pressedRef.current = false;
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+    if (modeRef.current === "hold") {
+      stopBreath(); // hold released
+      return;
+    }
+    // short press → tap; two quick taps toggle the hands-free session
+    const now = Date.now();
+    if (now - lastTapRef.current < DOUBLE_TAP_MS) {
+      lastTapRef.current = 0;
+      if (breathingRef.current) stopBreath();
+      else startBreath("free");
+    } else {
+      lastTapRef.current = now;
+    }
   };
 
   const orbStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
