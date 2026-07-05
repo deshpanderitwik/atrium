@@ -123,22 +123,22 @@ export default function Arrive() {
         paddingBottom: insets.bottom + 20,
       }}
     >
-      {/* Guiding text */}
-      <View style={{ flex: 1.1, justifyContent: "flex-end", alignItems: "center" }}>
+      {/* Text · orb · buttons, with equal spacers above and below the orb */}
+      <View style={{ flex: 1, alignItems: "center" }}>
         <Text
           style={{
             ...garamond.italic(23),
             color: breathing ? colors.inkFaint : colors.ink,
             textAlign: "center",
             lineHeight: 32,
+            marginTop: 44,
           }}
         >
           {line}
         </Text>
-      </View>
 
-      {/* Breath orb */}
-      <View style={{ alignItems: "center", justifyContent: "center", paddingTop: 44, paddingBottom: 20 }}>
+        <View style={{ flex: 1 }} />
+
         <Pressable onPressIn={onPressIn} onPressOut={onPressOut} hitSlop={24}>
           <Animated.View
             style={[
@@ -160,22 +160,23 @@ export default function Arrive() {
             </Text>
           </Animated.View>
         </Pressable>
-      </View>
 
-      {/* Actions + reflections entry */}
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "flex-start", paddingTop: 8 }}>
+        <View style={{ flex: 1 }} />
+
         <View style={{ width: "100%", alignItems: "center", gap: 12 }}>
           <ChoiceButton label="reflect" onPress={goReflect} />
           <ChoiceButton label="perform a task" onPress={() => router.push("/atrium")} />
         </View>
-        <Pressable
-          onPress={() => router.push("/reflections")}
-          hitSlop={12}
-          style={{ position: "absolute", bottom: 0 }}
-        >
-          <Text style={{ ...mono(10, 3), color: colors.inkFaint }}>reflections</Text>
-        </Pressable>
       </View>
+
+      {/* Reflections footer */}
+      <Pressable
+        onPress={() => router.push("/reflections")}
+        hitSlop={12}
+        style={{ alignSelf: "center", paddingTop: 16 }}
+      >
+        <Text style={{ ...mono(10, 3), color: colors.inkFaint }}>reflections</Text>
+      </Pressable>
     </View>
   );
 }
