@@ -16,6 +16,9 @@ import { colors, garamond, mono } from "@/theme";
 import { haptics } from "@/lib/haptics";
 import { pickGuidingLine } from "@/lib/guidance";
 import { useBreathAudio } from "@/lib/useBreathAudio";
+import { getBoolSetting, setBoolSetting } from "@/lib/settings";
+
+const SILENT_KEY = "breathSilent";
 
 const INHALE_MS = 4000;
 const EXHALE_MS = 6000;
@@ -61,6 +64,11 @@ export default function Arrive() {
   const roundsLimitRef = useRef<number | null>(null);
   const silentRef = useRef(false);
   const breathAudio = useBreathAudio();
+
+  // Restore the last-used silent preference so it carries across sessions.
+  useEffect(() => {
+    getBoolSetting(SILENT_KEY).then(setSilent);
+  }, []);
 
   const stopTick = () => {
     if (timeoutRef.current) {
@@ -392,7 +400,13 @@ export default function Arrive() {
 
             {/* Silent mode toggle — haptics-only breath, no audio */}
             <Pressable
-              onPress={() => setSilent((s) => !s)}
+              onPress={() =>
+                setSilent((s) => {
+                  const next = !s;
+                  setBoolSetting(SILENT_KEY, next);
+                  return next;
+                })
+              }
               hitSlop={8}
               style={{
                 flexDirection: "row",
