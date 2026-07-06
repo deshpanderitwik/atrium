@@ -30,7 +30,7 @@ const PERIOD_SECONDS = 70; // + a 10s rest
 // delays the haptic grid to compensate — tune to taste.
 const HAPTIC_TRIM_MS = 45;
 
-const DOUBLE_TAP_MS = 300; // two taps within this = open the rounds selector
+const HOLD_MS = 260; // a press sustained beyond this opens the rounds selector
 
 type Phase = "in" | "out" | "rest";
 
@@ -53,11 +53,11 @@ export default function Arrive() {
   const holdingRef = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const calibRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Gesture state: a single tap starts/stops a session, a double tap opens the
+  // Gesture state: a single tap starts/stops a session, a long press opens the
   // rounds selector. roundsLimitRef null = run indefinitely.
   const breathingRef = useRef(false);
-  const lastTapRef = useRef(0);
-  const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFiredRef = useRef(false);
   const roundsLimitRef = useRef<number | null>(null);
   const silentRef = useRef(false);
   const breathAudio = useBreathAudio();
@@ -123,10 +123,10 @@ export default function Arrive() {
       if (state === "active") {
         holdingRef.current = false;
         breathingRef.current = false;
-        lastTapRef.current = 0;
-        if (singleTapTimerRef.current) {
-          clearTimeout(singleTapTimerRef.current);
-          singleTapTimerRef.current = null;
+        longPressFiredRef.current = false;
+        if (holdTimeoutRef.current) {
+          clearTimeout(holdTimeoutRef.current);
+          holdTimeoutRef.current = null;
         }
         roundsLimitRef.current = null;
         silentRef.current = false;
@@ -227,29 +227,32 @@ export default function Arrive() {
     setBreathing(false);
   };
 
-  // A single tap starts or stops a session (running the selected number of
-  // rounds, honoring the last-used silent setting); a double tap opens the
-  // rounds selector. The single-tap action is deferred by one double-tap window
-  // so a second tap can cancel it and open the selector instead.
-  const onOrbTap = () => {
-    const now = Date.now();
-    if (now - lastTapRef.current < DOUBLE_TAP_MS) {
-      lastTapRef.current = 0;
-      if (singleTapTimerRef.current) {
-        clearTimeout(singleTapTimerRef.current);
-        singleTapTimerRef.current = null;
-      }
-      haptics.rigid();
-      setRoundsModal(true);
+  // A single tap starts or stops a session immediately (running the selected
+  // number of rounds, honoring the last-used silent setting); a long press
+  // opens the rounds selector instead.
+  const onOrbPressIn = () => {
+    longPressFiredRef.current = false;
+    if (!breathingRef.current && !roundsModal) {
+      holdTimeoutRef.current = setTimeout(() => {
+        holdTimeoutRef.current = null;
+        longPressFiredRef.current = true;
+        haptics.rigid();
+        setRoundsModal(true);
+      }, HOLD_MS);
+    }
+  };
+
+  const onOrbPressOut = () => {
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+    if (longPressFiredRef.current) {
+      longPressFiredRef.current = false; // long press opened the modal; not a tap
       return;
     }
-    lastTapRef.current = now;
-    if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current);
-    singleTapTimerRef.current = setTimeout(() => {
-      singleTapTimerRef.current = null;
-      if (breathingRef.current) stopBreath();
-      else startBreath(rounds, silent);
-    }, DOUBLE_TAP_MS);
+    if (breathingRef.current) stopBreath();
+    else startBreath(rounds, silent);
   };
 
   const beginRounds = () => {
@@ -289,7 +292,7 @@ export default function Arrive() {
 
         <View style={{ flex: 1 }} />
 
-        <Pressable onPress={onOrbTap} hitSlop={24}>
+        <Pressable onPressIn={onOrbPressIn} onPressOut={onOrbPressOut} hitSlop={24}>
           <Animated.View
             style={[
               {
