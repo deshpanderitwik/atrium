@@ -110,11 +110,9 @@ export default function Atrium() {
         </Pressable>
       </View>
 
-      {/* Add row: text · weekly · house */}
+      {/* Add row: text on its own line, weekly · house below it */}
       <View
         style={{
-          flexDirection: "row",
-          alignItems: "center",
           paddingVertical: 12,
           paddingLeft: 4,
           paddingRight: 8,
@@ -125,28 +123,38 @@ export default function Atrium() {
           marginBottom: 6,
         }}
       >
-        <Text
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text
+            style={{
+              ...garamond.regular(24),
+              color: colors.inkFaint,
+              width: 28,
+              textAlign: "center",
+            }}
+          >
+            +
+          </Text>
+          <TextInput
+            ref={inputRef}
+            value={newText}
+            onChangeText={setNewText}
+            placeholder="add a task"
+            placeholderTextColor={colors.inkFaint}
+            onSubmitEditing={commitNew}
+            blurOnSubmit={false}
+            returnKeyType="done"
+            style={{ ...garamond.regular(19), color: colors.ink, flex: 1, padding: 0 }}
+          />
+        </View>
+        <View
           style={{
-            ...garamond.regular(24),
-            color: colors.inkFaint,
-            width: 28,
-            textAlign: "center",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            marginTop: 12,
+            marginLeft: 28,
           }}
         >
-          +
-        </Text>
-        <TextInput
-          ref={inputRef}
-          value={newText}
-          onChangeText={setNewText}
-          placeholder="add a task"
-          placeholderTextColor={colors.inkFaint}
-          onSubmitEditing={commitNew}
-          blurOnSubmit={false}
-          returnKeyType="done"
-          style={{ ...garamond.regular(19), color: colors.ink, flex: 1, padding: 0 }}
-        />
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginLeft: 8 }}>
           <WeeklyToggle weekly={weekly} onToggle={toggleWeekly} />
           <HousePicker houseID={houseID} onChange={pickHouse} />
         </View>
