@@ -52,6 +52,24 @@ export const doneByDay = (todos: Todo[], houseID: string): DayGroup[] => {
 export const houseHasAnyTodos = (todos: Todo[], houseID: string): boolean =>
   todos.some((t) => t.houseID === houseID);
 
+// All done todos across every house, grouped by completion day.
+export const doneByDayAll = (todos: Todo[]): DayGroup[] => {
+  const done = todos
+    .filter((t) => t.statusRaw === 1)
+    .sort((a, b) => (b.completedAt ?? b.createdAt) - (a.completedAt ?? a.createdAt));
+
+  const groups = new Map<number, Todo[]>();
+  for (const t of done) {
+    const key = startOfDay(t.completedAt ?? t.createdAt);
+    const arr = groups.get(key);
+    if (arr) arr.push(t);
+    else groups.set(key, [t]);
+  }
+  return [...groups.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([day, items]) => ({ day, items }));
+};
+
 // "today" / "yesterday" / "monday 12 may" / "12 may 2024" — lowercase.
 export const dayLabel = (dayMs: number): string => {
   const today = startOfDay(Date.now());

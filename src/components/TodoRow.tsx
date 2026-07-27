@@ -8,17 +8,15 @@ import { formatDuration } from "@/lib/time";
 import { dueInLabel, isResting } from "@/lib/cadence";
 import { Todo, isDone } from "@/db/types";
 import { TodoCheckbox } from "./TodoCheckbox";
-import { RecurrenceChip } from "./RecurrenceChip";
+import { WeeklyToggle } from "./WeeklyToggle";
 
-// Ported from TodoRow.swift — checkbox, optional star, inline-editable text,
-// and a priority chip; wrapped in swipe-to-star (leading) / swipe-to-delete
-// (trailing). Open rows also support long-press drag to reorder.
+// Checkbox, inline-editable text, and a weekly toggle; wrapped in
+// swipe-to-delete (trailing). Open rows also support long-press drag to reorder.
 export function TodoRow({
   todo,
   onToggleDone,
   onUpdateText,
   onSetCadence,
-  onToggleStar,
   onDelete,
   onStartTask,
   drag,
@@ -27,7 +25,6 @@ export function TodoRow({
   onToggleDone: () => void;
   onUpdateText: (text: string) => void;
   onSetCadence: (days: number) => void;
-  onToggleStar?: () => void; // omitted for done rows (no leading swipe)
   onDelete: () => void;
   onStartTask?: () => void; // double-tap to zoom into the focus/timer view
   drag?: () => void;
@@ -78,25 +75,7 @@ export function TodoRow({
   // Action backgrounds mirror the row card: same 4pt vertical inset and 10pt
   // radius, so a partial swipe reveals a tidy rounded edge instead of a raw
   // square rectangle poking past the card's corners.
-  const renderLeftActions = onToggleStar
-    ? () => (
-        <View style={{ paddingVertical: 4, justifyContent: "center" }}>
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: colors.oxblood,
-              borderRadius: 10,
-              justifyContent: "center",
-              paddingHorizontal: 24,
-              marginRight: 4, // 4px gap between the star button and the card
-            }}
-          >
-            <Text style={{ color: "#fff", fontSize: 18 }}>★</Text>
-          </View>
-        </View>
-      )
-    : undefined;
-
+  //
   // Swiping left just reveals this button; deletion requires an explicit tap.
   const renderRightActions = () => (
     <View style={{ paddingVertical: 4, justifyContent: "center" }}>
@@ -123,21 +102,10 @@ export function TodoRow({
   return (
     <Swipeable
       ref={swipeRef}
-      renderLeftActions={renderLeftActions}
       renderRightActions={renderRightActions}
       overshootLeft={false}
       overshootRight={false}
-      leftThreshold={36}
       rightThreshold={40}
-      onSwipeableOpen={(direction) => {
-        if (direction === "left" && onToggleStar) {
-          // flick: toggle the star and snap the drawer shut immediately
-          haptics.rigid();
-          onToggleStar();
-          swipeRef.current?.close();
-        }
-        // right swipe only reveals the delete button — no auto-delete
-      }}
     >
       <View style={{ paddingVertical: 4 }}>
         <View
@@ -159,22 +127,6 @@ export function TodoRow({
               onToggleDone();
             }}
           />
-
-          {todo.starred === 1 && !done ? (
-            <Pressable
-              onPress={() => {
-                haptics.rigid();
-                onToggleStar?.();
-              }}
-              hitSlop={8}
-              style={{ marginRight: 4 }}
-            >
-              {/* lineHeight matches the title so the star centers on its first line */}
-              <Text style={{ fontSize: 14, lineHeight: 25, color: colors.oxblood }}>
-                ★
-              </Text>
-            </Pressable>
-          ) : null}
 
           {editing ? (
             <TextInput
@@ -238,7 +190,10 @@ export function TodoRow({
                   {dueInLabel(todo.nextDueAt, Date.now())}
                 </Text>
               ) : null}
-              <RecurrenceChip cadenceDays={todo.cadenceDays} onChange={onSetCadence} />
+              <WeeklyToggle
+                weekly={todo.cadenceDays > 0}
+                onToggle={() => onSetCadence(todo.cadenceDays > 0 ? 0 : 7)}
+              />
             </View>
           ) : todo.focusAccumSeconds > 0 ? (
             // Completed tasks that were timed show how long they took + breaks.
