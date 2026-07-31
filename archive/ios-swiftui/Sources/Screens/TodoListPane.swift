@@ -8,11 +8,6 @@ struct TodoListPane: View {
     @Query private var openTodos: [Todo]
     @Query private var doneTodos: [Todo]
 
-    /// Every declared task, across all twelve houses — the strip at the top
-    /// level of the atrium is capped, so starring has to know the global count.
-    @Query(filter: #Predicate<Todo> { $0.starred && $0.statusRaw == 0 })
-    private var starredTodos: [Todo]
-
     @State private var newText: String = ""
     @State private var newPriority: Priority = .defaultValue
     @FocusState private var inputFocused: Bool
@@ -59,24 +54,21 @@ struct TodoListPane: View {
                                 .listRowBackground(Color.paper)
                                 .listRowSeparator(.hidden)
                                 .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                                .swipeActions(edge: .leading, allowsFullSwipe: !starIsFull(for: todo)) {
-                                    let full = starIsFull(for: todo)
+                                .swipeActions(edge: .leading, allowsFullSwipe: true) {
                                     Button {
-                                        guard !full else { return }
                                         withAnimation(.easeOut(duration: 0.18)) {
                                             todo.starred.toggle()
                                         }
                                         Haptics.rigid()
                                     } label: {
                                         ZStack {
-                                            full ? Color.rule : Color.oxblood
+                                            Color.oxblood
                                             Image(systemName: todo.starred ? "star.slash.fill" : "star.fill")
-                                                .foregroundStyle(full ? Color.inkFaint : .white)
+                                                .foregroundStyle(.white)
                                         }
                                         .padding(.trailing, 8)
                                     }
                                     .tint(Color.paper)
-                                    .disabled(full)
                                 }
                                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                     Button {
@@ -161,13 +153,6 @@ struct TodoListPane: View {
     }
 
     // MARK: - Derived
-
-    /// True when this todo can't be starred because the three slots at the top
-    /// level are already spoken for. Un-starring is never blocked — you can
-    /// always give a slot back.
-    private func starIsFull(for todo: Todo) -> Bool {
-        !todo.starred && starredTodos.count >= StarLimit.max
-    }
 
     /// Done todos grouped by the calendar day they were completed, most recent day first.
     private var doneByDay: [(Date, [Todo])] {

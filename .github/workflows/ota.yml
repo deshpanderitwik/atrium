@@ -1,0 +1,39 @@
+name: OTA Update
+
+# The phone edit loop: every push of JS/asset changes publishes an EAS Update to
+# the `production` channel. The TestFlight build picks it up on next launch/resume.
+# Native changes (new deps, SDK bump) do NOT ship this way — they need a new
+# build (see build.yml) plus a `version` bump in app.config.ts, since the
+# runtimeVersion is keyed to the app version.
+on:
+  push:
+    branches:
+      - claude/testflight-ota-setup-jvwqy1
+      - main
+    paths-ignore:
+      - "archive/**"
+      - "process/**"
+      - "**/*.md"
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publish OTA update
+        run: eas update --branch production --message "${{ github.event.head_commit.message }}" --non-interactive
