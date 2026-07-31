@@ -17,6 +17,7 @@ import { haptics } from "@/lib/haptics";
 import { pickGuidingLine } from "@/lib/guidance";
 import { useBreathAudio } from "@/lib/useBreathAudio";
 import { getBoolSetting, setBoolSetting } from "@/lib/settings";
+import { DeclaredStrip } from "@/components/DeclaredStrip";
 
 const SILENT_KEY = "breathSilent";
 
@@ -315,6 +316,10 @@ export default function Arrive() {
         </Pressable>
 
         <View style={{ flex: 1 }} />
+
+        {/* The three declared tasks, under the breath. Recede while breathing
+            so nothing competes with the orb. */}
+        <DeclaredStrip dimmed={breathing} />
 
         <View style={{ width: "100%", alignItems: "center", gap: 12 }}>
           <ChoiceButton label="reflect" onPress={goReflect} />

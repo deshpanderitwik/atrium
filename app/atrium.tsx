@@ -13,7 +13,8 @@ import { haptics } from "@/lib/haptics";
 import { getBoolSetting, getSetting, setBoolSetting, setSetting } from "@/lib/settings";
 import { useTodos } from "@/db/store";
 import { Todo } from "@/db/types";
-import { activeTodos, doneByDayAll, restingTodos } from "@/db/selectors";
+import { activeTodos, declaredOpen, doneByDayAll, restingTodos } from "@/db/selectors";
+import { STAR_LIMIT } from "@/lib/starLimit";
 import { TodoRow } from "@/components/TodoRow";
 import { WeeklyToggle } from "@/components/WeeklyToggle";
 import { HousePicker } from "@/components/HousePicker";
@@ -34,6 +35,7 @@ export default function Atrium() {
     addTodo,
     updateText,
     toggleDone,
+    toggleStar,
     setCadence,
     deleteTodo,
     reorderActive,
@@ -83,12 +85,18 @@ export default function Atrium() {
   const days = doneByDayAll(todos);
   const empty = groups.length === 0 && days.length === 0;
 
+  // Three declared slots across every house. Once they're spoken for, the star
+  // affordance greys out until one is released.
+  const canStar = declaredOpen(todos).length < STAR_LIMIT;
+
   const rowFor = (item: Todo, drag?: () => void) => (
     <TodoRow
       todo={item}
       drag={drag}
+      canStar={canStar}
       onStartTask={() => router.push(`/focus/${item.id}`)}
       onToggleDone={() => toggleDone(item.id)}
+      onToggleStar={() => toggleStar(item.id)}
       onUpdateText={(t) => updateText(item.id, t)}
       onSetCadence={(d) => setCadence(item.id, d)}
       onDelete={() => deleteTodo(item.id)}

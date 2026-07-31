@@ -25,10 +25,17 @@ export const activeCountForHouse = (todos: Todo[], houseID: string, now = Date.n
   todos.filter((t) => t.houseID === houseID && t.statusRaw === 0 && !isResting(t, now)).length;
 
 // Starred + open + due now (resting starred tasks aren't actionable yet).
+// This is the slice Arrive shows.
 export const starredOpen = (todos: Todo[], now = Date.now()): Todo[] =>
   todos
     .filter((t) => t.starred === 1 && t.statusRaw === 0 && !isResting(t, now))
     .sort(byPosition);
+
+// Every declared task, resting or not — what the three-slot cap counts against.
+// Wider than starredOpen(): a starred recurring task still occupies a slot
+// while it rests, otherwise its return could push the strip past three.
+export const declaredOpen = (todos: Todo[]): Todo[] =>
+  todos.filter((t) => t.starred === 1 && t.statusRaw === 0);
 
 // Done todos grouped by completion day, most-recent day first, newest within.
 export type DayGroup = { day: number; items: Todo[] };

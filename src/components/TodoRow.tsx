@@ -11,7 +11,8 @@ import { TodoCheckbox } from "./TodoCheckbox";
 import { WeeklyToggle } from "./WeeklyToggle";
 
 // Checkbox, inline-editable text, and a weekly toggle; wrapped in
-// swipe-to-delete (trailing). Open rows also support long-press drag to reorder.
+// swipe-to-declare (leading) and swipe-to-delete (trailing). Open rows also
+// support long-press drag to reorder.
 export function TodoRow({
   todo,
   onToggleDone,
@@ -19,6 +20,8 @@ export function TodoRow({
   onSetCadence,
   onDelete,
   onStartTask,
+  onToggleStar,
+  canStar = true,
   drag,
 }: {
   todo: Todo;
@@ -27,9 +30,14 @@ export function TodoRow({
   onSetCadence: (days: number) => void;
   onDelete: () => void;
   onStartTask?: () => void; // double-tap to zoom into the focus/timer view
+  onToggleStar?: () => void; // omitted on done rows — nothing to declare
+  canStar?: boolean; // false once three slots are spoken for
   drag?: () => void;
 }) {
   const done = isDone(todo);
+  const starred = todo.starred === 1;
+  // Releasing a slot is never blocked; only claiming a fourth one is.
+  const starBlocked = !starred && !canStar;
   const resting = isResting(todo, Date.now());
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(todo.text);
@@ -99,12 +107,54 @@ export function TodoRow({
     </View>
   );
 
+  // Swiping right reveals the star: declare this task onto Arrive, or release
+  // it. At the cap the button greys out and does nothing but buzz — the three
+  // slots are a choice you have to unmake before you can make another.
+  const renderLeftActions = () => (
+    <View style={{ paddingVertical: 4, justifyContent: "center" }}>
+      <Pressable
+        onPress={() => {
+          if (starBlocked) {
+            haptics.warning();
+            return;
+          }
+          haptics.rigid();
+          onToggleStar?.();
+          swipeRef.current?.close();
+        }}
+        style={{
+          flex: 1,
+          backgroundColor: starBlocked
+            ? colors.rule
+            : starred
+              ? colors.paperWarm
+              : colors.oxblood,
+          borderWidth: starred && !starBlocked ? 1 : 0,
+          borderColor: colors.oxblood,
+          borderRadius: 10,
+          justifyContent: "center",
+          alignItems: "flex-start",
+          paddingHorizontal: 24,
+          marginRight: 4, // 4px gap between the star button and the card
+        }}
+      >
+        <Feather
+          name="star"
+          size={18}
+          color={starBlocked ? colors.inkFaint : starred ? colors.oxblood : "#fff"}
+        />
+      </Pressable>
+    </View>
+  );
+
   return (
     <Swipeable
       ref={swipeRef}
+      renderLeftActions={onToggleStar ? renderLeftActions : undefined}
       renderRightActions={renderRightActions}
       overshootLeft={false}
       overshootRight={false}
+      leftThreshold={40}
       rightThreshold={40}
     >
       <View style={{ paddingVertical: 4 }}>
@@ -127,6 +177,19 @@ export function TodoRow({
               onToggleDone();
             }}
           />
+
+          {starred && !done ? (
+            <Text
+              style={{
+                fontSize: 13,
+                lineHeight: 25, // match the text line so it sits on the baseline
+                color: colors.oxblood,
+                marginRight: 4,
+              }}
+            >
+              ★
+            </Text>
+          ) : null}
 
           {editing ? (
             <TextInput
