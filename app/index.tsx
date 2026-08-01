@@ -14,7 +14,6 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, garamond, mono } from "@/theme";
 import { haptics } from "@/lib/haptics";
-import { pickGuidingLine } from "@/lib/guidance";
 import { useBreathAudio } from "@/lib/useBreathAudio";
 import { getBoolSetting, setBoolSetting } from "@/lib/settings";
 import { DeclaredStrip } from "@/components/DeclaredStrip";
@@ -41,7 +40,6 @@ type Phase = "in" | "out" | "rest";
 export default function Arrive() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [line, setLine] = useState(pickGuidingLine);
   const [breathing, setBreathing] = useState(false);
   const [phase, setPhase] = useState<Phase>("in");
   const [roundsModal, setRoundsModal] = useState(false);
@@ -118,7 +116,7 @@ export default function Arrive() {
     [scale],
   );
 
-  // Returning to the app resets a fresh, settled gate with a new guiding line.
+  // Returning to the app resets a fresh, settled gate.
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
@@ -138,7 +136,6 @@ export default function Arrive() {
         setBreathing(false);
         setRoundsModal(false);
         setPhase("in");
-        setLine(pickGuidingLine());
       }
     });
     return () => sub.remove();
@@ -277,20 +274,8 @@ export default function Arrive() {
         paddingBottom: insets.bottom + 20,
       }}
     >
-      {/* Text · orb · buttons, with equal spacers above and below the orb */}
+      {/* orb · buttons, with equal spacers above and below the orb */}
       <View style={{ flex: 1, alignItems: "center" }}>
-        <Text
-          style={{
-            ...garamond.italic(23),
-            color: breathing ? colors.inkFaint : colors.ink,
-            textAlign: "center",
-            lineHeight: 32,
-            marginTop: 44,
-          }}
-        >
-          {line}
-        </Text>
-
         <View style={{ flex: 1 }} />
 
         <Pressable onPressIn={onOrbPressIn} onPressOut={onOrbPressOut} hitSlop={24}>
