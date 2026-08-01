@@ -9,7 +9,7 @@ import { starredOpen } from "@/db/selectors";
 import { HOUSES } from "@/houses";
 import { TodoCheckbox } from "./TodoCheckbox";
 
-// The declared tasks, sitting under the orb on Arrive.
+// The declared tasks, sitting at the top of Arrive.
 //
 // Everything on this strip is something you chose to put here — never
 // something the app counted. That distinction is what keeps Arrive from
@@ -25,7 +25,7 @@ export function DeclaredStrip({ dimmed = false }: { dimmed?: boolean }) {
   if (declared.length === 0) return null;
 
   return (
-    <View style={{ width: "100%", opacity: dimmed ? 0.25 : 1, marginBottom: 24 }}>
+    <View style={{ width: "100%", opacity: dimmed ? 0.25 : 1, marginTop: 44, marginBottom: 24 }}>
       {declared.map((todo) => {
         const house = HOUSES.find((h) => h.id === todo.houseID);
         return (

@@ -276,6 +276,10 @@ export default function Arrive() {
     >
       {/* orb · buttons, with equal spacers above and below the orb */}
       <View style={{ flex: 1, alignItems: "center" }}>
+        {/* The three declared tasks, at the top where the guiding line was.
+            Recede while breathing so nothing competes with the orb. */}
+        <DeclaredStrip dimmed={breathing} />
+
         <View style={{ flex: 1 }} />
 
         <Pressable onPressIn={onOrbPressIn} onPressOut={onOrbPressOut} hitSlop={24}>
@@ -301,10 +305,6 @@ export default function Arrive() {
         </Pressable>
 
         <View style={{ flex: 1 }} />
-
-        {/* The three declared tasks, under the breath. Recede while breathing
-            so nothing competes with the orb. */}
-        <DeclaredStrip dimmed={breathing} />
 
         <View style={{ width: "100%", alignItems: "center", gap: 12 }}>
           <ChoiceButton label="reflect" onPress={goReflect} />
