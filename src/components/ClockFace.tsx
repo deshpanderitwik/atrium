@@ -100,6 +100,37 @@ export function ClockFace({ size = 120 }: { size?: number }) {
   );
 }
 
+// A "draining" level inside the orb: full at midnight, emptying to nothing by
+// the next midnight. The wash marks time remaining; the clear space above it is
+// how much of the day has already passed. Meant to sit behind the clock hands,
+// clipped by the orb's rounded edge (parent needs overflow: "hidden").
+export function DayFill() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  const elapsed = (now.getTime() - start.getTime()) / 86_400_000; // 0..1
+  const remaining = Math.max(0, Math.min(1, 1 - elapsed));
+
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: `${remaining * 100}%`,
+        backgroundColor: colors.oxblood + "33", // ~20% warm wash
+      }}
+    />
+  );
+}
+
 // The label under the orb: how many whole hours remain before the day ends.
 export function HoursLeftLabel({ dimmed = false }: { dimmed?: boolean }) {
   const [now, setNow] = useState(() => new Date());

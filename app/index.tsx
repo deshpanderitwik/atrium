@@ -17,7 +17,7 @@ import { haptics } from "@/lib/haptics";
 import { useBreathAudio } from "@/lib/useBreathAudio";
 import { getBoolSetting, setBoolSetting } from "@/lib/settings";
 import { DeclaredStrip } from "@/components/DeclaredStrip";
-import { ClockFace, HoursLeftLabel } from "@/components/ClockFace";
+import { ClockFace, DayFill, HoursLeftLabel } from "@/components/ClockFace";
 
 const SILENT_KEY = "breathSilent";
 
@@ -295,6 +295,7 @@ export default function Arrive() {
                 alignItems: "center",
                 justifyContent: "center",
                 backgroundColor: colors.paperWarm,
+                overflow: "hidden", // clip the day-fill to the orb's circle
               },
               orbStyle,
             ]}
@@ -302,7 +303,10 @@ export default function Arrive() {
             {breathing ? (
               <Text style={{ ...mono(13, 4), color: colors.ink }}>{phase}</Text>
             ) : (
-              <ClockFace size={120} />
+              <>
+                <DayFill />
+                <ClockFace size={120} />
+              </>
             )}
           </Animated.View>
         </Pressable>
