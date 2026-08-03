@@ -17,6 +17,7 @@ import { haptics } from "@/lib/haptics";
 import { useBreathAudio } from "@/lib/useBreathAudio";
 import { getBoolSetting, setBoolSetting } from "@/lib/settings";
 import { DeclaredStrip } from "@/components/DeclaredStrip";
+import { ClockFace, HoursLeftLabel } from "@/components/ClockFace";
 
 const SILENT_KEY = "breathSilent";
 
@@ -298,11 +299,17 @@ export default function Arrive() {
               orbStyle,
             ]}
           >
-            <Text style={{ ...mono(13, 4), color: colors.ink }}>
-              {breathing ? phase : "arrive"}
-            </Text>
+            {breathing ? (
+              <Text style={{ ...mono(13, 4), color: colors.ink }}>{phase}</Text>
+            ) : (
+              <ClockFace size={120} />
+            )}
           </Animated.View>
         </Pressable>
+
+        <View style={{ marginTop: 18 }}>
+          <HoursLeftLabel dimmed={breathing} />
+        </View>
 
         <View style={{ flex: 1 }} />
 
