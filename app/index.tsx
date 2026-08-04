@@ -289,7 +289,7 @@ export default function Arrive() {
           <Pressable
             onPress={() => router.push("/atrium")}
             hitSlop={8}
-            style={{ opacity: breathing ? 0.25 : 1, paddingVertical: 2 }}
+            style={{ alignSelf: "flex-end", opacity: breathing ? 0.25 : 1, paddingVertical: 2 }}
           >
             <Text style={{ ...mono(11, 3), color: colors.inkFaint }}>perform a task</Text>
           </Pressable>
