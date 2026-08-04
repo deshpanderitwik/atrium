@@ -291,7 +291,7 @@ export default function Arrive() {
             hitSlop={8}
             style={{ alignSelf: "center", opacity: breathing ? 0.25 : 1, paddingVertical: 2 }}
           >
-            <Text style={{ ...mono(11, 3), color: colors.inkFaint }}>task</Text>
+            <Text style={{ ...mono(11, 3), color: colors.inkFaint }}>tasks</Text>
           </Pressable>
         </View>
 
