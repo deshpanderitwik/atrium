@@ -18,6 +18,7 @@ import { useBreathAudio } from "@/lib/useBreathAudio";
 import { getBoolSetting, setBoolSetting } from "@/lib/settings";
 import { DeclaredStrip } from "@/components/DeclaredStrip";
 import { ClockFace, DayFill, HoursLeftLabel } from "@/components/ClockFace";
+import { useReflections } from "@/db/reflections";
 
 const SILENT_KEY = "breathSilent";
 
@@ -41,6 +42,8 @@ type Phase = "in" | "out" | "rest";
 export default function Arrive() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { reflections } = useReflections();
+  const lastReflection = reflections[0]; // store returns newest-first
   const [breathing, setBreathing] = useState(false);
   const [phase, setPhase] = useState<Phase>("in");
   const [roundsModal, setRoundsModal] = useState(false);
@@ -298,9 +301,9 @@ export default function Arrive() {
           <Animated.View
             style={[
               {
-                width: 140,
-                height: 140,
-                borderRadius: 70,
+                width: 168,
+                height: 168,
+                borderRadius: 84,
                 borderWidth: 1.5,
                 borderColor: colors.oxblood,
                 alignItems: "center",
@@ -316,7 +319,7 @@ export default function Arrive() {
             ) : (
               <>
                 <DayFill />
-                <ClockFace size={120} />
+                <ClockFace size={144} />
               </>
             )}
           </Animated.View>
@@ -328,19 +331,37 @@ export default function Arrive() {
 
         <View style={{ flex: 1 }} />
 
-        <View style={{ width: "100%", alignItems: "center" }}>
-          <ChoiceButton label="reflect" onPress={goReflect} />
+        {/* Last reflection's opening lines (tap to write); the reflections
+            timeline tucked beneath, right-aligned to mirror "perform a task". */}
+        <View style={{ width: "100%" }}>
+          <Pressable onPress={goReflect} style={{ opacity: breathing ? 0.25 : 1 }}>
+            {lastReflection ? (
+              <Text
+                numberOfLines={2}
+                style={{ ...garamond.regular(18), color: colors.ink, lineHeight: 26 }}
+              >
+                {lastReflection.body}
+              </Text>
+            ) : (
+              <Text style={{ ...garamond.italic(18), color: colors.inkFaint, lineHeight: 26 }}>
+                what are you experiencing?
+              </Text>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={() => router.push("/reflections")}
+            hitSlop={8}
+            style={{
+              alignSelf: "flex-end",
+              opacity: breathing ? 0.25 : 1,
+              paddingVertical: 2,
+              marginTop: 8,
+            }}
+          >
+            <Text style={{ ...mono(11, 3), color: colors.inkFaint }}>reflections</Text>
+          </Pressable>
         </View>
       </View>
-
-      {/* Reflections footer */}
-      <Pressable
-        onPress={() => router.push("/reflections")}
-        hitSlop={12}
-        style={{ alignSelf: "center", paddingTop: 16 }}
-      >
-        <Text style={{ ...mono(10, 3), color: colors.inkFaint }}>reflections</Text>
-      </Pressable>
 
       {/* Rounds modal (long-press) */}
       <Modal
@@ -458,21 +479,3 @@ export default function Arrive() {
   );
 }
 
-function ChoiceButton({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        width: "100%",
-        maxWidth: 280,
-        borderWidth: 1,
-        borderColor: colors.rule,
-        borderRadius: 10,
-        paddingVertical: 16,
-        alignItems: "center",
-      }}
-    >
-      <Text style={{ ...mono(12, 3), color: colors.ink }}>{label}</Text>
-    </Pressable>
-  );
-}
