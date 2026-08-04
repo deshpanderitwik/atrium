@@ -331,10 +331,13 @@ export default function Arrive() {
 
         <View style={{ flex: 1 }} />
 
-        {/* Last reflection's opening lines (tap to write); the reflections
-            timeline tucked beneath, right-aligned to mirror "perform a task". */}
+        {/* Last reflection's opening lines (tap to browse the timeline); the
+            "add reflection" entry tucked beneath, centered like "perform a task". */}
         <View style={{ width: "100%" }}>
-          <Pressable onPress={goReflect} style={{ opacity: breathing ? 0.25 : 1 }}>
+          <Pressable
+            onPress={() => router.push("/reflections")}
+            style={{ opacity: breathing ? 0.25 : 1 }}
+          >
             {lastReflection ? (
               <Text
                 numberOfLines={2}
@@ -349,7 +352,7 @@ export default function Arrive() {
             )}
           </Pressable>
           <Pressable
-            onPress={() => router.push("/reflections")}
+            onPress={goReflect}
             hitSlop={8}
             style={{
               alignSelf: "center",
@@ -358,7 +361,7 @@ export default function Arrive() {
               marginTop: 8,
             }}
           >
-            <Text style={{ ...mono(11, 3), color: colors.inkFaint }}>reflections</Text>
+            <Text style={{ ...mono(11, 3), color: colors.inkFaint }}>add reflection</Text>
           </Pressable>
         </View>
       </View>
