@@ -25,7 +25,7 @@ export function DeclaredStrip({ dimmed = false }: { dimmed?: boolean }) {
   if (declared.length === 0) return null;
 
   return (
-    <View style={{ width: "100%", opacity: dimmed ? 0.25 : 1, marginTop: 44, marginBottom: 24 }}>
+    <View style={{ width: "100%", opacity: dimmed ? 0.25 : 1, marginBottom: 12 }}>
       {declared.map((todo) => {
         const house = HOUSES.find((h) => h.id === todo.houseID);
         return (

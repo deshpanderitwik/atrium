@@ -277,9 +277,20 @@ export default function Arrive() {
     >
       {/* orb · buttons, with equal spacers above and below the orb */}
       <View style={{ flex: 1, alignItems: "center" }}>
-        {/* The three declared tasks, at the top where the guiding line was.
-            Recede while breathing so nothing competes with the orb. */}
-        <DeclaredStrip dimmed={breathing} />
+        {/* The three declared tasks, at the top where the guiding line was,
+            with the quiet path into the task list tucked beneath them. Both
+            recede while breathing so nothing competes with the orb. Kept
+            visible even with no tasks pinned, so the list stays reachable. */}
+        <View style={{ width: "100%", marginTop: 44 }}>
+          <DeclaredStrip dimmed={breathing} />
+          <Pressable
+            onPress={() => router.push("/atrium")}
+            hitSlop={8}
+            style={{ opacity: breathing ? 0.25 : 1, paddingVertical: 2 }}
+          >
+            <Text style={{ ...mono(11, 3), color: colors.inkFaint }}>perform a task</Text>
+          </Pressable>
+        </View>
 
         <View style={{ flex: 1 }} />
 
@@ -317,9 +328,8 @@ export default function Arrive() {
 
         <View style={{ flex: 1 }} />
 
-        <View style={{ width: "100%", alignItems: "center", gap: 12 }}>
+        <View style={{ width: "100%", alignItems: "center" }}>
           <ChoiceButton label="reflect" onPress={goReflect} />
-          <ChoiceButton label="perform a task" onPress={() => router.push("/atrium")} />
         </View>
       </View>
 
