@@ -13,11 +13,10 @@ import { TodoCheckbox } from "./TodoCheckbox";
 //
 // Everything on this strip is something you chose to put here — never
 // something the app counted. That distinction is what keeps Arrive from
-// becoming a dashboard. Tap the circle to complete it, the star to release it
-// back to the list, the text to go work on it.
+// becoming a dashboard. Tap the circle to complete it, the text to go work on it.
 export function DeclaredStrip({ dimmed = false }: { dimmed?: boolean }) {
   const router = useRouter();
-  const { todos, toggleDone, toggleStar } = useTodos();
+  const { todos, toggleDone } = useTodos();
 
   // Defensive slice — starring is capped at three, but a task that was
   // resting when the third was declared could briefly make four due at once.
@@ -62,17 +61,6 @@ export function DeclaredStrip({ dimmed = false }: { dimmed?: boolean }) {
               >
                 {house?.name.toLowerCase() ?? ""}
               </Text>
-            </Pressable>
-
-            <Pressable
-              hitSlop={12}
-              onPress={() => {
-                haptics.rigid();
-                toggleStar(todo.id);
-              }}
-              style={{ width: 32, height: 25, alignItems: "center", justifyContent: "center" }}
-            >
-              <Text style={{ fontSize: 14, color: colors.oxblood }}>★</Text>
             </Pressable>
           </View>
         );
