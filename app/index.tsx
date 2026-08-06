@@ -325,9 +325,14 @@ export default function Arrive() {
           </Animated.View>
         </Pressable>
 
-        <View style={{ marginTop: 18 }}>
+        <Pressable
+          onPress={() => router.push("/year")}
+          disabled={breathing}
+          hitSlop={8}
+          style={{ marginTop: 18 }}
+        >
           <HoursLeftLabel dimmed={breathing} />
-        </View>
+        </Pressable>
 
         <View style={{ flex: 1 }} />
 
