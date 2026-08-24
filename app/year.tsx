@@ -22,8 +22,6 @@ export default function Year() {
   const totalDays = Math.round((nextJan1 - jan1) / DAY_MS);
   const todayIndex = Math.round((startOfDay(now.getTime()) - jan1) / DAY_MS); // 0-based
   const dayOfYear = todayIndex + 1;
-  const passed = todayIndex; // whole days already elapsed
-  const left = totalDays - dayOfYear; // whole days still ahead
 
   return (
     <ScrollView
@@ -38,11 +36,8 @@ export default function Year() {
       </View>
 
       <Text style={{ ...garamond.medium(38), color: colors.ink, marginBottom: 6 }}>{year}</Text>
-      <Text style={{ ...garamond.italic(17), color: colors.inkSoft, marginBottom: 4 }}>
+      <Text style={{ ...garamond.italic(17), color: colors.inkSoft, marginBottom: 28 }}>
         day {dayOfYear} of {totalDays}
-      </Text>
-      <Text style={{ ...mono(11, 2), color: colors.inkFaint, marginBottom: 28 }}>
-        {passed} passed · {left} left
       </Text>
 
       <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
