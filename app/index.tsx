@@ -1,489 +1,225 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, Modal, Pressable, Text, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
-import Animated, {
-  Easing,
-  cancelAnimation,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
-import { useRouter } from "expo-router";
+import { Keyboard, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, garamond, mono } from "@/theme";
+import { night } from "@/theme";
 import { haptics } from "@/lib/haptics";
-import { useBreathAudio } from "@/lib/useBreathAudio";
-import { getBoolSetting, setBoolSetting } from "@/lib/settings";
-import { DeclaredStrip } from "@/components/DeclaredStrip";
-import { ClockFace, DayFill, HoursLeftLabel } from "@/components/ClockFace";
-import { useReflections } from "@/db/reflections";
+import { getSetting, setSetting } from "@/lib/settings";
+import { BreathConfig, BreathPattern, cycleSeconds } from "@/lib/breath";
+import { BreathResult, useBreathSession } from "@/lib/useBreathSession";
+import { NameEntry, useThread } from "@/db/thread";
+import { Frame, ThreadList } from "@/components/thread/ThreadList";
+import { LiftedName } from "@/components/thread/LiftedName";
+import { Belt, BeltMode } from "@/components/thread/Belt";
 
+const PATTERN_KEY = "breathPattern";
+const ROUNDS_KEY = "breathRounds"; // "0" = until stopped
 const SILENT_KEY = "breathSilent";
 
-const INHALE_MS = 4000;
-const EXHALE_MS = 6000;
-const BREATH_SECONDS = 60; // 6 breath cycles of audio
-const PERIOD_SECONDS = 70; // + a 10s rest
-
-// The heard audio trails its reported playback position by the device's output
-// latency, so after calibration the tap still lands slightly early. This trim
-// delays the haptic grid to compensate — tune to taste.
-const HAPTIC_TRIM_MS = 45;
-
-const HOLD_MS = 260; // a press sustained beyond this opens the rounds selector
-
-type Phase = "in" | "out" | "rest";
-
-// Arrive — the single home screen. Guiding text, a press-and-hold breath orb
-// (4 in / 6 out with plucks), and the two paths + reflections entry, all at
-// once. The breath is available but never gates anything.
-export default function Arrive() {
-  const router = useRouter();
+// The thread — the single home screen. The day in time order (named things and
+// breath sessions), with the belt at the bottom: breathe · text box · send.
+export default function Thread() {
   const insets = useSafeAreaInsets();
-  const { reflections } = useReflections();
-  const lastReflection = reflections[0]; // store returns newest-first
-  const [breathing, setBreathing] = useState(false);
-  const [phase, setPhase] = useState<Phase>("in");
-  const [roundsModal, setRoundsModal] = useState(false);
-  const [rounds, setRounds] = useState(3);
-  const [silent, setSilent] = useState(false);
+  const { entries, addName, renameName, addBreath, removeEntry } = useThread();
+  const inputRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
-  const scale = useSharedValue(1);
-  const startRef = useRef(0);
-  const beatRef = useRef(0);
-  const holdingRef = useRef(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const calibRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Gesture state: a single tap starts/stops a session, a long press opens the
-  // rounds selector. roundsLimitRef null = run indefinitely.
-  const breathingRef = useRef(false);
-  const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressFiredRef = useRef(false);
-  const roundsLimitRef = useRef<number | null>(null);
-  const silentRef = useRef(false);
-  const breathAudio = useBreathAudio();
+  const [mode, setMode] = useState<BeltMode>("compose");
+  const [text, setTextState] = useState("");
+  // The live value, so a send never reads a stale render.
+  const textRef = useRef("");
+  const setText = (t: string) => {
+    textRef.current = t;
+    setTextState(t);
+  };
+  // Clearing through state alone is a no-op when the render lagged the native
+  // field, so clear the field itself too.
+  const clearText = () => {
+    inputRef.current?.clear();
+    setText("");
+  };
+  const [focused, setFocused] = useState(false);
+  const [warn, setWarn] = useState(0);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [freshId, setFreshId] = useState<string | null>(null);
+  const [lifted, setLifted] = useState<{ entry: NameEntry; frame: Frame } | null>(null);
+  const [config, setConfig] = useState<BreathConfig>({ pattern: "4-6", rounds: 3, silent: false });
 
-  // Restore the last-used silent preference so it carries across sessions.
+  // Restore the last-used breath setup.
   useEffect(() => {
-    getBoolSetting(SILENT_KEY).then(setSilent);
+    (async () => {
+      const [pattern, rounds, silent] = await Promise.all([
+        getSetting(PATTERN_KEY),
+        getSetting(ROUNDS_KEY),
+        getSetting(SILENT_KEY),
+      ]);
+      setConfig({
+        pattern: pattern === "5-5" ? "5-5" : ("4-6" as BreathPattern),
+        rounds: rounds == null ? 3 : Number(rounds) || null,
+        silent: silent === "1",
+      });
+    })();
   }, []);
 
-  const stopTick = () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    if (calibRef.current) {
-      clearTimeout(calibRef.current);
-      calibRef.current = null;
-    }
-  };
-
-  // Shift the beat grid so it lands on the audio's true onset rather than the
-  // press moment (audio has output latency; haptics don't).
-  const calibrateToAudio = () => {
-    calibRef.current = setTimeout(async () => {
-      const pos = await breathAudio.getPositionMillis();
-      const after = Date.now();
-      if (!holdingRef.current || pos == null || pos <= 0) return;
-      const audioStart = after - pos + HAPTIC_TRIM_MS;
-      // only apply a sane correction
-      if (Math.abs(audioStart - startRef.current) < 500) {
-        startRef.current = audioStart;
-      }
-    }, 350);
-  };
-
-  const startBreathAnim = useCallback(() => {
-    scale.value = withRepeat(
-      withSequence(
-        withTiming(1.5, { duration: INHALE_MS, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: EXHALE_MS, easing: Easing.inOut(Easing.ease) }),
-      ),
-      -1,
-      false,
-    );
-  }, [scale]);
-
-  const stopBreathAnim = useCallback(() => {
-    cancelAnimation(scale);
-    scale.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) });
-  }, [scale]);
-
-  useEffect(
-    () => () => {
-      stopTick();
-      cancelAnimation(scale);
-    },
-    [scale],
-  );
-
-  // Returning to the app resets a fresh, settled gate.
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state === "active") {
-        holdingRef.current = false;
-        breathingRef.current = false;
-        longPressFiredRef.current = false;
-        if (holdTimeoutRef.current) {
-          clearTimeout(holdTimeoutRef.current);
-          holdTimeoutRef.current = null;
-        }
-        roundsLimitRef.current = null;
-        silentRef.current = false;
-        stopTick();
-        breathAudio.stop();
-        cancelAnimation(scale);
-        scale.value = 1;
-        setBreathing(false);
-        setRoundsModal(false);
-        setPhase("in");
-      }
+  // Merge rather than replace, so quick taps across rows never undo each other.
+  const updateConfig = (patch: Partial<BreathConfig>) => {
+    haptics.selection();
+    setConfig((prev) => {
+      const c = { ...prev, ...patch };
+      setSetting(PATTERN_KEY, c.pattern);
+      setSetting(ROUNDS_KEY, String(c.rounds ?? 0));
+      setSetting(SILENT_KEY, c.silent ? "1" : "0");
+      return c;
     });
-    return () => sub.remove();
-  }, [scale]);
+  };
 
-  // One self-correcting beat per second across the 70s period: breath-phase
-  // haptics during the 60s of breathing, a tap on each of the 10 rest seconds.
-  const handleBeat = useCallback(
-    (b: number) => {
-      const pos = b % PERIOD_SECONDS; // 0..69
-      const silentMode = silentRef.current;
-      if (pos < BREATH_SECONDS) {
-        const local = pos % 10;
-        if (pos === 0) {
-          setPhase("in");
-          if (b > 0) startBreathAnim(); // breath resumes after a rest
-        } else if (local === 0) {
-          setPhase("in");
-        } else if (local === 4) {
-          setPhase("out");
-        }
-        // Silent mode marks every breath second by touch: a firm double-tap on
-        // the inhale, a single soft tap on the exhale. Audio mode uses the
-        // plucks (no haptics).
-        if (silentMode) {
-          if (local < 4) {
-            haptics.rigid();
-            setTimeout(() => {
-              if (breathingRef.current && silentRef.current) haptics.rigid();
-            }, 90);
-          } else {
-            haptics.soft();
-          }
-        }
-      } else {
-        if (pos === BREATH_SECONDS) {
-          setPhase("rest");
-          stopBreathAnim();
-        }
-        // Audio mode taps out the rest seconds; silent mode's rest is fully quiet.
-        if (!silentMode) haptics.rigid();
-      }
+  // A session is logged only once a full in-and-out cycle is done, so an
+  // accidental start leaves no trace.
+  const onFinish = useCallback(
+    async ({ config: c, seconds, rounds }: BreathResult) => {
+      setMode("compose");
+      if (seconds < cycleSeconds(c.pattern)) return;
+      haptics.success();
+      const id = await addBreath({
+        pattern: c.pattern,
+        rounds,
+        seconds: Math.round(seconds),
+        silent: c.silent,
+      });
+      setFreshId(id);
     },
-    [startBreathAnim, stopBreathAnim],
+    [addBreath],
   );
+  const session = useBreathSession(onFinish);
 
-  // rounds === null runs indefinitely; otherwise stop after that many rounds
-  // (a round = one 70s period: 60s breath + 10s rest).
-  const startBreath = (roundsLimit: number | null, silentMode: boolean) => {
-    silentRef.current = silentMode;
-    breathingRef.current = true;
-    roundsLimitRef.current = roundsLimit;
-    startRef.current = Date.now() + HAPTIC_TRIM_MS;
-    holdingRef.current = true;
-    setPhase("in");
-    setBreathing(true);
-    if (!silentMode) {
-      breathAudio.start();
-      calibrateToAudio(); // only needed to sync haptics to audio
-    }
-    startBreathAnim();
-    beatRef.current = 0;
-    const tick = () => {
-      handleBeat(beatRef.current);
-      beatRef.current += 1;
-      if (
-        roundsLimitRef.current != null &&
-        beatRef.current >= roundsLimitRef.current * PERIOD_SECONDS
-      ) {
-        stopBreath(); // reached the requested number of rounds
-        return;
-      }
-      const nextAt = startRef.current + beatRef.current * 1000;
-      timeoutRef.current = setTimeout(tick, Math.max(0, nextAt - Date.now()));
-    };
-    tick(); // beat 0 fires immediately (start of the inhale)
-  };
-
-  const stopBreath = () => {
-    breathingRef.current = false;
-    roundsLimitRef.current = null;
-    silentRef.current = false;
-    holdingRef.current = false;
-    stopTick();
-    breathAudio.stop();
-    stopBreathAnim();
-    setBreathing(false);
-  };
-
-  // A single tap starts or stops a session immediately (running the selected
-  // number of rounds, honoring the last-used silent setting); a long press
-  // opens the rounds selector instead.
-  const onOrbPressIn = () => {
-    longPressFiredRef.current = false;
-    if (!breathingRef.current && !roundsModal) {
-      holdTimeoutRef.current = setTimeout(() => {
-        holdTimeoutRef.current = null;
-        longPressFiredRef.current = true;
-        haptics.rigid();
-        setRoundsModal(true);
-      }, HOLD_MS);
-    }
-  };
-
-  const onOrbPressOut = () => {
-    if (holdTimeoutRef.current) {
-      clearTimeout(holdTimeoutRef.current);
-      holdTimeoutRef.current = null;
-    }
-    if (longPressFiredRef.current) {
-      longPressFiredRef.current = false; // long press opened the modal; not a tap
+  const send = async (submitted?: string) => {
+    const v = (submitted ?? textRef.current).trim().replace(/\s+/g, " ");
+    if (!v) {
+      setWarn((w) => w + 1);
+      haptics.warning();
       return;
     }
-    if (breathingRef.current) stopBreath();
-    else startBreath(rounds, silent);
+    if (editingId) {
+      await renameName(editingId, v);
+      setEditingId(null);
+      clearText();
+      Keyboard.dismiss();
+      return;
+    }
+    clearText();
+    haptics.light();
+    const id = await addName(v);
+    setFreshId(id);
   };
 
-  const beginRounds = () => {
-    setRoundsModal(false);
-    startBreath(rounds, silent);
+  // Tapping the thread puts away whatever is open.
+  const dismiss = () => {
+    if (mode === "setup") {
+      setMode("compose");
+      return;
+    }
+    Keyboard.dismiss();
+    if (editingId) {
+      setEditingId(null);
+      clearText();
+    }
   };
 
-  const orbStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const openSetup = () => {
+    Keyboard.dismiss();
+    haptics.light();
+    setMode("setup");
+  };
 
-  const goReflect = () => {
-    router.push("/reflect");
+  const start = () => {
+    haptics.rigid();
+    setMode("dock");
+    session.start(config);
+  };
+
+  const onLongPressName = (entry: NameEntry, frame: Frame) => {
+    if (mode !== "compose") return;
+    Keyboard.dismiss();
+    haptics.rigid();
+    setLifted({ entry, frame });
+  };
+
+  const editLifted = () => {
+    if (!lifted) return;
+    setEditingId(lifted.entry.id);
+    setText(lifted.entry.text);
+    setLifted(null);
+    setTimeout(() => inputRef.current?.focus(), 200);
+  };
+
+  const deleteLifted = () => {
+    if (!lifted) return;
+    const id = lifted.entry.id;
+    setLifted(null);
+    haptics.light();
+    removeEntry(id);
   };
 
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: colors.paper,
-        paddingHorizontal: 32,
-        paddingTop: insets.top,
-        paddingBottom: insets.bottom + 20,
-      }}
-    >
-      {/* orb · buttons, with equal spacers above and below the orb */}
-      <View style={{ flex: 1, alignItems: "center" }}>
-        {/* The three declared tasks, at the top where the guiding line was,
-            with the quiet path into the task list tucked beneath them. Both
-            recede while breathing so nothing competes with the orb. Kept
-            visible even with no tasks pinned, so the list stays reachable. */}
-        <View style={{ width: "100%", marginTop: 44 }}>
-          <DeclaredStrip dimmed={breathing} />
-          <Pressable
-            onPress={() => router.push("/atrium")}
-            hitSlop={8}
-            style={{ alignSelf: "center", opacity: breathing ? 0.25 : 1, paddingVertical: 2 }}
-          >
-            <Text style={{ ...mono(11, 3), color: colors.inkFaint }}>tasks</Text>
-          </Pressable>
-        </View>
-
-        <View style={{ flex: 1 }} />
-
-        <Pressable onPressIn={onOrbPressIn} onPressOut={onOrbPressOut} hitSlop={24}>
-          <Animated.View
-            style={[
-              {
-                width: 168,
-                height: 168,
-                borderRadius: 84,
-                borderWidth: 1.5,
-                borderColor: colors.oxblood,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: colors.paperWarm,
-                overflow: "hidden", // clip the day-fill to the orb's circle
-              },
-              orbStyle,
-            ]}
-          >
-            {breathing ? (
-              <Text style={{ ...mono(13, 4), color: colors.ink }}>{phase}</Text>
-            ) : (
-              <>
-                <DayFill />
-                <ClockFace size={144} />
-              </>
-            )}
-          </Animated.View>
-        </Pressable>
-
-        <Pressable
-          onPress={() => router.push("/year")}
-          disabled={breathing}
-          hitSlop={8}
-          style={{ marginTop: 18 }}
-        >
-          <HoursLeftLabel dimmed={breathing} />
-        </Pressable>
-
-        <View style={{ flex: 1 }} />
-
-        {/* Last reflection's opening lines (tap to browse the timeline); the
-            "add reflection" entry tucked beneath, centered like "perform a task". */}
-        <View style={{ width: "100%" }}>
-          <Pressable
-            onPress={() => router.push("/reflections")}
-            style={{ opacity: breathing ? 0.25 : 1 }}
-          >
-            {lastReflection ? (
-              <Text
-                numberOfLines={2}
-                style={{ ...garamond.regular(18), color: colors.ink, lineHeight: 26 }}
-              >
-                {lastReflection.body}
-              </Text>
-            ) : (
-              <Text style={{ ...garamond.italic(18), color: colors.inkFaint, lineHeight: 26 }}>
-                what are you experiencing?
-              </Text>
-            )}
-          </Pressable>
-          <Pressable
-            onPress={goReflect}
-            hitSlop={8}
-            style={{
-              alignSelf: "center",
-              opacity: breathing ? 0.25 : 1,
-              paddingVertical: 2,
-              marginTop: 8,
-            }}
-          >
-            <Text style={{ ...mono(11, 3), color: colors.inkFaint }}>add reflection</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      {/* Rounds modal (long-press) */}
-      <Modal
-        transparent
-        visible={roundsModal}
-        animationType="fade"
-        onRequestClose={() => setRoundsModal(false)}
+    <View style={{ flex: 1, backgroundColor: night.bg }}>
+      <ScrollView
+        ref={scrollRef}
+        style={{ opacity: mode === "dock" ? 0 : 1 }}
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingTop: insets.top + 16,
+          paddingHorizontal: 18,
+          paddingBottom: insets.bottom + 120,
+        }}
       >
-        <Pressable
-          onPress={() => setRoundsModal(false)}
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.45)",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Pressable
-            onPress={() => {}}
-            style={{
-              width: 260,
-              backgroundColor: colors.paperWarm,
-              borderWidth: 1,
-              borderColor: colors.rule,
-              borderRadius: 14,
-              paddingVertical: 28,
-              paddingHorizontal: 28,
-              alignItems: "center",
-            }}
-          >
-            <Text style={{ ...garamond.italic(20), color: colors.ink, marginBottom: 22 }}>
-              how many rounds?
-            </Text>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 28,
-                marginBottom: 26,
-              }}
-            >
-              <Pressable onPress={() => setRounds((r) => Math.max(1, r - 1))} hitSlop={14}>
-                <Feather name="minus" size={22} color={colors.ink} />
-              </Pressable>
-              <Text
-                style={{ ...mono(26, 2), color: colors.ink, minWidth: 44, textAlign: "center" }}
-              >
-                {rounds}
-              </Text>
-              <Pressable onPress={() => setRounds((r) => Math.min(20, r + 1))} hitSlop={14}>
-                <Feather name="plus" size={22} color={colors.ink} />
-              </Pressable>
-            </View>
-
-            {/* Silent mode toggle — haptics-only breath, no audio */}
-            <Pressable
-              onPress={() =>
-                setSilent((s) => {
-                  const next = !s;
-                  setBoolSetting(SILENT_KEY, next);
-                  return next;
-                })
-              }
-              hitSlop={8}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 12,
-                marginBottom: 26,
-              }}
-            >
-              <View
-                style={{
-                  width: 40,
-                  height: 24,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: silent ? colors.oxblood : colors.rule,
-                  backgroundColor: silent ? colors.oxblood : "transparent",
-                  justifyContent: "center",
-                  paddingHorizontal: 2,
-                }}
-              >
-                <View
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: 9,
-                    backgroundColor: silent ? "#fff" : colors.inkFaint,
-                    alignSelf: silent ? "flex-end" : "flex-start",
-                  }}
-                />
-              </View>
-              <Text style={{ ...mono(11, 2), color: colors.inkFaint }}>silent</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={beginRounds}
-              style={{
-                borderWidth: 1,
-                borderColor: colors.rule,
-                borderRadius: 10,
-                paddingVertical: 14,
-                paddingHorizontal: 48,
-              }}
-            >
-              <Text style={{ ...mono(12, 3), color: colors.ink }}>begin</Text>
-            </Pressable>
-          </Pressable>
+        <Pressable onPress={dismiss} style={{ flexGrow: 1 }}>
+          <ThreadList
+            entries={entries}
+            freshId={freshId}
+            liftedId={lifted?.entry.id ?? null}
+            onLongPressName={onLongPressName}
+          />
         </Pressable>
-      </Modal>
+      </ScrollView>
+
+      <Belt
+        ref={inputRef}
+        mode={mode}
+        text={text}
+        onChangeText={(t) => {
+          setText(t);
+          if (warn) setWarn(0);
+        }}
+        onSend={send}
+        onOpenSetup={openSetup}
+        focused={focused}
+        onFocusChange={setFocused}
+        editing={editingId != null}
+        warn={warn}
+        config={config}
+        onConfig={updateConfig}
+        onStart={start}
+        onCloseSetup={() => setMode("compose")}
+        phase={session.phase}
+        elapsed={session.elapsed}
+        round={session.round}
+        restLeft={session.restLeft}
+        scale={session.scale}
+        onEnd={session.stop}
+      />
+
+      {lifted && (
+        <LiftedName
+          entry={lifted.entry}
+          frame={lifted.frame}
+          onEdit={editLifted}
+          onDelete={deleteLifted}
+          onDismiss={() => setLifted(null)}
+        />
+      )}
     </View>
   );
 }
-

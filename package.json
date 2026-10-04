@@ -11,6 +11,7 @@
   },
   "private": true,
   "dependencies": {
+    "@expo-google-fonts/bricolage-grotesque": "^0.4.1",
     "expo": "~52.0.0",
     "expo-asset": "~11.0.5",
     "expo-av": "~15.0.2",
