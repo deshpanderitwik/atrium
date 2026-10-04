@@ -35,5 +35,10 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      # The commit message goes through an env var, never spliced into the
+      # script, so quotes or newlines in it can't break (or inject into) the
+      # command. Only its first line becomes the update message.
       - name: Publish OTA update
-        run: eas update --branch production --message "${{ github.event.head_commit.message }}" --non-interactive
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: eas update --branch production --message "$(printf '%s\n' "$COMMIT_MESSAGE" | head -n 1)" --non-interactive
