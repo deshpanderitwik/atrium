@@ -103,19 +103,22 @@
     return d.getTime() + minutes(t) * 60000;
   };
 
-  // A block starts when the one before it was tapped done.
+  // A block starts when the one before it was tapped done. Times that were
+  // estimated afterwards, not tapped, are marked with ≈.
   function actualLine(b, i, isNow) {
     const prev = data.blocks[i - 1];
     const start = prev && prev.done && prev.doneAt ? prev.doneAt : null;
+    const est = (b.done && b.approx) || (start && prev.approx) ? "≈ " : "";
     if (b.done && b.doneAt) {
-      if (!start) return `done ${hhmm(b.doneAt)}`;
+      if (!start) return `${est}done ${hhmm(b.doneAt)}`;
       const mins = Math.max(0, Math.round((b.doneAt - start) / 60000));
-      return `actual ${hhmm(start)}–${hhmm(b.doneAt)} · ${mins} min`;
+      return `${est}actual ${hhmm(start)}–${hhmm(b.doneAt)} · ${mins} min`;
     }
-    if (isNow && start && b.time) {
+    if (isNow && start) {
+      if (!b.time) return `${est}started ${hhmm(start)} · unplanned`;
       const drift = Math.round((start - plannedMs(b.time)) / 60000);
       const when = Math.abs(drift) < 3 ? "on plan" : drift > 0 ? `${drift} min after plan` : `${-drift} min ahead of plan`;
-      return `started ${hhmm(start)} · ${when}`;
+      return `${est}started ${hhmm(start)} · ${when}`;
     }
     return null;
   }
@@ -127,7 +130,7 @@
     if (withTime) {
       const t = document.createElement("span");
       t.className = "time";
-      t.textContent = item.time || "";
+      t.textContent = item.time || "—";
       li.append(t);
     }
     const title = document.createElement("span");
