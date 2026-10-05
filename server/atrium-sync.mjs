@@ -68,16 +68,22 @@ db.exec(`
     time TEXT,                 -- '15:50' start, blocks only
     title TEXT NOT NULL,
     note TEXT,
-    done INTEGER NOT NULL DEFAULT 0
+    done INTEGER NOT NULL DEFAULT 0,
+    doneAt INTEGER             -- ms since epoch, when it was tapped done
   );
 `);
+if (!db.prepare("PRAGMA table_info(plan_items)").all().some((c) => c.name === "doneAt")) {
+  db.exec("ALTER TABLE plan_items ADD COLUMN doneAt INTEGER");
+}
 const planBlocks = db.prepare(
-  "SELECT id, time, title, note, done FROM plan_items WHERE date = ? ORDER BY position",
+  "SELECT id, time, title, note, done, doneAt FROM plan_items WHERE date = ? ORDER BY position",
 );
 const planLoops = db.prepare(
-  "SELECT id, title, note, done FROM plan_items WHERE date IS NULL ORDER BY position",
+  "SELECT id, title, note, done, doneAt FROM plan_items WHERE date IS NULL ORDER BY position",
 );
-const toggleItem = db.prepare("UPDATE plan_items SET done = 1 - done WHERE id = ?");
+const toggleItem = db.prepare(
+  "UPDATE plan_items SET done = 1 - done, doneAt = CASE WHEN done = 0 THEN ? ELSE NULL END WHERE id = ?",
+);
 const localDate = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -134,7 +140,7 @@ const server = http.createServer((req, res) => {
   }
   const toggle = req.method === "POST" && /^\/api\/plan\/(\d+)\/toggle$/.exec(req.url);
   if (toggle) {
-    const r = toggleItem.run(Number(toggle[1]));
+    const r = toggleItem.run(Date.now(), Number(toggle[1]));
     return send(res, r.changes ? 200 : 404, { ok: r.changes > 0 });
   }
   if (req.method === "GET" && PAGES[req.url]) {

@@ -6,8 +6,10 @@
 <meta name="color-scheme" content="dark">
 <title>Today</title>
 <style>
-  /* The day's blocks in order, the one you're in lit up, each tapped off when
-     done. Parked loops wait underneath with their first step. */
+  /* The day's blocks in order. The one you're in is the first one not yet
+     done, lit up; tapping a block done records the time, so each block shows
+     what was planned beside what actually happened. Parked loops wait
+     underneath with their first step. */
   @font-face {
     font-family: "Bricolage";
     src: url("/fonts/BricolageGrotesque_400Regular.ttf") format("truetype");
@@ -58,9 +60,11 @@
     overflow-wrap: anywhere;
   }
   .note { grid-column: 2; color: var(--soft); font-size: clamp(15px, 2vw, 19px); line-height: 1.4; margin-top: 6px; }
+  .actual { grid-column: 2; font-family: var(--mono); font-size: 13px; color: var(--soft); margin-top: 8px; }
+  li.now .actual { color: var(--hot); }
   li.now .title { color: var(--hot); }
   li.now .time { color: var(--hot); }
-  li.done { opacity: 0.32; }
+  li.done { opacity: 0.4; }
   li.done .title { text-decoration: line-through; text-decoration-thickness: 1px; }
   #loops li { grid-template-columns: minmax(0, 1fr); }
   #loops .title { font-size: clamp(22px, 3.6vw, 36px); }
@@ -83,13 +87,37 @@
     return h * 60 + m;
   };
 
-  // The block you're in: the last one that has started.
+  // The block you're in is the first one you haven't finished, whatever the
+  // clock says; the planned times stay as the intention.
   function currentId(blocks) {
-    const d = new Date();
-    const now = d.getHours() * 60 + d.getMinutes();
-    let id = null;
-    for (const b of blocks) if (b.time && minutes(b.time) <= now) id = b.id;
-    return id;
+    const b = blocks.find((b) => !b.done);
+    return b ? b.id : null;
+  }
+
+  const hhmm = (ms) => {
+    const d = new Date(ms);
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  };
+  const plannedMs = (t) => {
+    const d = new Date(data.date + "T00:00:00");
+    return d.getTime() + minutes(t) * 60000;
+  };
+
+  // A block starts when the one before it was tapped done.
+  function actualLine(b, i, isNow) {
+    const prev = data.blocks[i - 1];
+    const start = prev && prev.done && prev.doneAt ? prev.doneAt : null;
+    if (b.done && b.doneAt) {
+      if (!start) return `done ${hhmm(b.doneAt)}`;
+      const mins = Math.max(0, Math.round((b.doneAt - start) / 60000));
+      return `actual ${hhmm(start)}–${hhmm(b.doneAt)} · ${mins} min`;
+    }
+    if (isNow && start && b.time) {
+      const drift = Math.round((start - plannedMs(b.time)) / 60000);
+      const when = Math.abs(drift) < 3 ? "on plan" : drift > 0 ? `${drift} min after plan` : `${-drift} min ahead of plan`;
+      return `started ${hhmm(start)} · ${when}`;
+    }
+    return null;
   }
 
   function row(item, withTime) {
@@ -113,7 +141,7 @@
       li.append(n);
     }
     li.classList.toggle("done", !!item.done);
-    const flip = () => toggle(item, li);
+    const flip = () => toggle(item);
     li.addEventListener("click", flip);
     li.addEventListener("keydown", (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), flip()));
     return li;
@@ -121,9 +149,17 @@
 
   function render() {
     const nowId = currentId(data.blocks);
-    blocksEl.replaceChildren(...data.blocks.map((b) => {
+    blocksEl.replaceChildren(...data.blocks.map((b, i) => {
       const li = row(b, true);
-      li.classList.toggle("now", b.id === nowId && !b.done);
+      const isNow = b.id === nowId;
+      li.classList.toggle("now", isNow);
+      const line = actualLine(b, i, isNow);
+      if (line) {
+        const a = document.createElement("span");
+        a.className = "actual";
+        a.textContent = line;
+        li.append(a);
+      }
       return li;
     }));
     loopsEl.replaceChildren(...data.loops.map((l) => row(l, false)));
@@ -133,18 +169,21 @@
       "Today · " + d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
   }
 
-  async function toggle(item, li) {
-    item.done = item.done ? 0 : 1; // show it at once; the server confirms
-    li.classList.toggle("done", !!item.done);
-    li.classList.remove("now");
+  async function toggle(item) {
+    item.done = item.done ? 0 : 1; // show it at once; the server has the real time
+    item.doneAt = item.done ? Date.now() : null;
+    render();
     try {
       const r = await fetch(`/api/plan/${item.id}/toggle`, { method: "POST" });
       if (!r.ok) throw new Error();
     } catch {
       item.done = item.done ? 0 : 1;
-      li.classList.toggle("done", !!item.done);
+      item.doneAt = null;
+      render();
+      return;
     }
-    render();
+    last = null;
+    refresh();
   }
 
   let last = null;
