@@ -57,11 +57,38 @@ const objects = db.prepare(
   "SELECT id, text, createdAt FROM thread_entries WHERE kind = 'name' AND deletedAt IS NULL ORDER BY createdAt",
 );
 
+// The day's plan: time blocks for a given date, plus parked loops (date NULL)
+// each with its first step. Claude writes these rows; the Today page reads
+// them and toggles done.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS plan_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT,                 -- 'YYYY-MM-DD' for a block, NULL for a parked loop
+    position INTEGER NOT NULL,
+    time TEXT,                 -- '15:50' start, blocks only
+    title TEXT NOT NULL,
+    note TEXT,
+    done INTEGER NOT NULL DEFAULT 0
+  );
+`);
+const planBlocks = db.prepare(
+  "SELECT id, time, title, note, done FROM plan_items WHERE date = ? ORDER BY position",
+);
+const planLoops = db.prepare(
+  "SELECT id, title, note, done FROM plan_items WHERE date IS NULL ORDER BY position",
+);
+const toggleItem = db.prepare("UPDATE plan_items SET done = 1 - done WHERE id = ?");
+const localDate = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 // Pages for looking at the data, served from public/ next to this file. Only
 // these exact paths are served.
 const PUBLIC = join(dirname(fileURLToPath(import.meta.url)), "public");
 const PAGES = {
   "/": ["index.html", "text/html; charset=utf-8"],
+  "/today": ["today.html", "text/html; charset=utf-8"],
   "/fonts/BricolageGrotesque_400Regular.ttf": ["fonts/BricolageGrotesque_400Regular.ttf", "font/ttf"],
 };
 
@@ -100,6 +127,15 @@ const server = http.createServer((req, res) => {
   }
   if (req.method === "GET" && req.url === "/api/objects") {
     return send(res, 200, objects.all());
+  }
+  if (req.method === "GET" && req.url === "/api/today") {
+    const date = localDate();
+    return send(res, 200, { date, blocks: planBlocks.all(date), loops: planLoops.all() });
+  }
+  const toggle = req.method === "POST" && /^\/api\/plan\/(\d+)\/toggle$/.exec(req.url);
+  if (toggle) {
+    const r = toggleItem.run(Number(toggle[1]));
+    return send(res, r.changes ? 200 : 404, { ok: r.changes > 0 });
   }
   if (req.method === "GET" && PAGES[req.url]) {
     const [file, type] = PAGES[req.url];

@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Today</title>
+<style>
+  /* The day's blocks in order, the one you're in lit up, each tapped off when
+     done. Parked loops wait underneath with their first step. */
+  @font-face {
+    font-family: "Bricolage";
+    src: url("/fonts/BricolageGrotesque_400Regular.ttf") format("truetype");
+    font-display: swap;
+  }
+  :root {
+    --bg: #0e0d0c;
+    --ink: #f2eee6;
+    --soft: #a89f94;
+    --faint: #56504a;
+    --hot: #ff6a2b;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    color-scheme: dark;
+  }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: "Bricolage", ui-sans-serif, system-ui, sans-serif;
+    min-height: 100vh;
+    padding-block: max(10vh, env(safe-area-inset-top)) 18vh;
+    padding-inline: max(7vw, 20px);
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .label {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 18px;
+  }
+  ol { list-style: none; margin: 0 0 12vh; padding: 0; }
+  li {
+    display: grid;
+    grid-template-columns: 4.2em minmax(0, 1fr);
+    column-gap: 14px;
+    align-items: baseline;
+    padding-block: 14px;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 300ms ease, color 300ms ease;
+  }
+  .time { font-family: var(--mono); font-size: 14px; color: var(--faint); }
+  .title {
+    font-size: clamp(26px, 5.2vw, 52px);
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    overflow-wrap: anywhere;
+  }
+  .note { grid-column: 2; color: var(--soft); font-size: clamp(15px, 2vw, 19px); line-height: 1.4; margin-top: 6px; }
+  li.now .title { color: var(--hot); }
+  li.now .time { color: var(--hot); }
+  li.done { opacity: 0.32; }
+  li.done .title { text-decoration: line-through; text-decoration-thickness: 1px; }
+  #loops li { grid-template-columns: minmax(0, 1fr); }
+  #loops .title { font-size: clamp(22px, 3.6vw, 36px); }
+  #loops .note { grid-column: 1; }
+  li:focus-visible { outline: 1px solid var(--soft); outline-offset: 6px; }
+</style>
+</head>
+<body>
+<p class="label" id="date">Today</p>
+<ol id="blocks"></ol>
+<p class="label" id="parked-label" hidden>Parked</p>
+<ol id="loops"></ol>
+<script>
+  const blocksEl = document.getElementById("blocks");
+  const loopsEl = document.getElementById("loops");
+  let data = null;
+
+  const minutes = (t) => {
+    const [h, m] = t.split(":").map(Number);
+    return h * 60 + m;
+  };
+
+  // The block you're in: the last one that has started.
+  function currentId(blocks) {
+    const d = new Date();
+    const now = d.getHours() * 60 + d.getMinutes();
+    let id = null;
+    for (const b of blocks) if (b.time && minutes(b.time) <= now) id = b.id;
+    return id;
+  }
+
+  function row(item, withTime) {
+    const li = document.createElement("li");
+    li.tabIndex = 0;
+    li.dataset.id = item.id;
+    if (withTime) {
+      const t = document.createElement("span");
+      t.className = "time";
+      t.textContent = item.time || "";
+      li.append(t);
+    }
+    const title = document.createElement("span");
+    title.className = "title";
+    title.textContent = item.title;
+    li.append(title);
+    if (item.note) {
+      const n = document.createElement("span");
+      n.className = "note";
+      n.textContent = item.note;
+      li.append(n);
+    }
+    li.classList.toggle("done", !!item.done);
+    const flip = () => toggle(item, li);
+    li.addEventListener("click", flip);
+    li.addEventListener("keydown", (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), flip()));
+    return li;
+  }
+
+  function render() {
+    const nowId = currentId(data.blocks);
+    blocksEl.replaceChildren(...data.blocks.map((b) => {
+      const li = row(b, true);
+      li.classList.toggle("now", b.id === nowId && !b.done);
+      return li;
+    }));
+    loopsEl.replaceChildren(...data.loops.map((l) => row(l, false)));
+    document.getElementById("parked-label").hidden = data.loops.length === 0;
+    const d = new Date(data.date + "T12:00:00");
+    document.getElementById("date").textContent =
+      "Today · " + d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  }
+
+  async function toggle(item, li) {
+    item.done = item.done ? 0 : 1; // show it at once; the server confirms
+    li.classList.toggle("done", !!item.done);
+    li.classList.remove("now");
+    try {
+      const r = await fetch(`/api/plan/${item.id}/toggle`, { method: "POST" });
+      if (!r.ok) throw new Error();
+    } catch {
+      item.done = item.done ? 0 : 1;
+      li.classList.toggle("done", !!item.done);
+    }
+    render();
+  }
+
+  let last = null;
+  async function refresh() {
+    try {
+      const body = await (await fetch("/api/today", { cache: "no-store" })).text();
+      if (body === last && data) return render(); // keeps "now" moving with the clock
+      last = body;
+      data = JSON.parse(body);
+      render();
+    } catch {
+      // server restarting; try again shortly
+    }
+  }
+
+  refresh();
+  setInterval(() => document.hidden || refresh(), 30000);
+  document.addEventListener("visibilitychange", () => document.hidden || refresh());
+</script>
+</body>
+</html>
