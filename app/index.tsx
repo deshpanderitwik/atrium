@@ -22,6 +22,13 @@ export default function Thread() {
   const { entries, addName, renameName, addBreath, removeEntry } = useThread();
   const inputRef = useRef<TextInput>(null);
   const scrollRef = useRef<ScrollView>(null);
+  // Where a pill sits on screen is worked out from its place in the list, the
+  // list's origin and how far it has scrolled. (Measuring the pill against the
+  // window directly ignores the scroll on this React Native version, which sent
+  // the lifted pill off screen once the list got long.)
+  const contentRef = useRef<View>(null);
+  const listOrigin = useRef({ x: 0, y: 0 });
+  const scrollY = useRef(0);
 
   const [mode, setMode] = useState<BeltMode>("compose");
   const [text, setTextState] = useState("");
@@ -136,11 +143,35 @@ export default function Thread() {
     session.start(config);
   };
 
-  const onLongPressName = (entry: NameEntry, frame: Frame) => {
+  const onLongPressName = (entry: NameEntry, node: View) => {
     if (mode !== "compose") return;
-    Keyboard.dismiss();
-    haptics.rigid();
-    setLifted({ entry, frame });
+    // Closing the keyboard moves the list, so let it settle before measuring.
+    if (Keyboard.isVisible()) {
+      Keyboard.dismiss();
+      setTimeout(() => liftName(entry, node), 320);
+    } else {
+      liftName(entry, node);
+    }
+  };
+
+  const liftName = (entry: NameEntry, node: View) => {
+    if (!contentRef.current) return;
+    node.measureLayout(
+      contentRef.current,
+      (x, y, width, height) => {
+        haptics.rigid();
+        setLifted({
+          entry,
+          frame: {
+            x: listOrigin.current.x + x,
+            y: listOrigin.current.y + y - scrollY.current,
+            width,
+            height,
+          },
+        });
+      },
+      () => {},
+    );
   };
 
   const editLifted = () => {
@@ -163,19 +194,32 @@ export default function Thread() {
     <View style={{ flex: 1, backgroundColor: night.bg }}>
       <ScrollView
         ref={scrollRef}
+        onLayout={(e) => {
+          listOrigin.current = { x: e.nativeEvent.layout.x, y: e.nativeEvent.layout.y };
+        }}
+        onScroll={(e) => {
+          scrollY.current = e.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
         style={{ opacity: mode === "dock" ? 0 : 1 }}
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingTop: insets.top + 16,
-          paddingHorizontal: 18,
-          paddingBottom: insets.bottom + 120,
-        }}
+        contentContainerStyle={{ flexGrow: 1 }}
       >
-        <Pressable onPress={dismiss} style={{ flexGrow: 1 }}>
+        {/* Padding lives here, not on the content container, so a pill measured
+            against this view already includes it. */}
+        <Pressable
+          ref={contentRef}
+          onPress={dismiss}
+          style={{
+            flexGrow: 1,
+            paddingTop: insets.top + 16,
+            paddingHorizontal: 18,
+            paddingBottom: insets.bottom + 120,
+          }}
+        >
           <ThreadList
             entries={entries}
             freshId={freshId}
@@ -184,6 +228,18 @@ export default function Thread() {
           />
         </Pressable>
       </ScrollView>
+
+      {/* Keeps scrolled names from running under the clock: solid behind the
+          status bar, then a short fade. */}
+      <View
+        pointerEvents="none"
+        style={{ position: "absolute", top: 0, left: 0, right: 0, opacity: mode === "dock" ? 0 : 1 }}
+      >
+        <View style={{ height: insets.top + 4, backgroundColor: night.bg }} />
+        {[0.85, 0.6, 0.35, 0.12].map((o) => (
+          <View key={o} style={{ height: 4, backgroundColor: night.bg, opacity: o }} />
+        ))}
+      </View>
 
       <Belt
         ref={inputRef}

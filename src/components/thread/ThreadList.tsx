@@ -115,7 +115,7 @@ function NamePill({
   entry: NameEntry;
   fresh: boolean;
   lifted: boolean;
-  onLongPress: (entry: NameEntry, frame: Frame) => void;
+  onLongPress: (entry: NameEntry, node: View) => void;
 }) {
   const ref = useRef<View>(null);
   return (
@@ -128,11 +128,7 @@ function NamePill({
     >
       <Pressable
         delayLongPress={380}
-        onLongPress={() =>
-          ref.current?.measureInWindow((x, y, width, height) =>
-            onLongPress(entry, { x, y, width, height }),
-          )
-        }
+        onLongPress={() => ref.current && onLongPress(entry, ref.current)}
         style={{
           flexDirection: "row",
           paddingHorizontal: 12,
@@ -195,7 +191,7 @@ export function ThreadList({
   entries: ThreadEntry[];
   freshId: string | null;
   liftedId: string | null;
-  onLongPressName: (entry: NameEntry, frame: Frame) => void;
+  onLongPressName: (entry: NameEntry, node: View) => void;
 }) {
   if (!entries.length) {
     return (
