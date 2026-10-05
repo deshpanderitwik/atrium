@@ -5,12 +5,14 @@
 # from the repo: macOS won't let a background agent read ~/Desktop. Re-run this
 # after changing server/atrium-sync.mjs.
 #
-# Then put it on the tailnet (once):  tailscale serve --bg 8787
+# It answers on the home network (HOST=0.0.0.0), where the phone syncs to
+# http://<LocalHostName>.local:8787. Set HOST=127.0.0.1 to keep it Mac-only.
 
 set -eu
 
 LABEL="com.ritwikdeshpande.atrium-sync"
 PORT="${PORT:-8787}"
+HOST="${HOST:-0.0.0.0}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 APP="$HOME/Library/Application Support/Atrium"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
@@ -33,7 +35,10 @@ cat > "$PLIST" <<EOF
     <string>$APP/atrium-sync.mjs</string>
   </array>
   <key>EnvironmentVariables</key>
-  <dict><key>PORT</key><string>$PORT</string></dict>
+  <dict>
+    <key>PORT</key><string>$PORT</string>
+    <key>HOST</key><string>$HOST</string>
+  </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>StandardOutPath</key><string>$LOG</string>
@@ -46,4 +51,4 @@ launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
 sleep 1
 curl -fsS "http://127.0.0.1:$PORT/health" && echo
-echo "Installed $LABEL on 127.0.0.1:$PORT — data in $APP/atrium.db, log in $LOG"
+echo "Installed $LABEL on $HOST:$PORT — data in $APP/atrium.db, log in $LOG"

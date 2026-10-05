@@ -2,9 +2,9 @@
 // one SQLite file on this Mac, where Claude can read them and dashboards can be
 // built from them. Zero dependencies: node:http + node:sqlite (Node >= 22.13).
 //
-// It listens on 127.0.0.1 only. The phone reaches it through `tailscale serve`,
-// which puts HTTPS in front of it on the private tailnet — nothing is exposed
-// to the internet.
+// By default it listens on 127.0.0.1 only. With HOST=0.0.0.0 (what install.sh
+// sets) it also answers on the home network, where the phone reaches it at
+// http://<this Mac>.local:8787 — the router keeps it off the internet.
 //
 // The data lives outside the repo (which is public):
 //   ~/Library/Application Support/Atrium/atrium.db   (override: ATRIUM_DATA_DIR)
@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 const PORT = Number(process.env.PORT || 8787);
+const HOST = process.env.HOST || "127.0.0.1";
 const DIR = process.env.ATRIUM_DATA_DIR || join(homedir(), "Library", "Application Support", "Atrium");
 const MAX_BODY = 1_000_000;
 
@@ -119,6 +120,6 @@ const server = http.createServer((req, res) => {
   send(res, 404, { ok: false, error: "not found" });
 });
 
-server.listen(PORT, "127.0.0.1", () => {
-  console.log(`atrium-sync on http://127.0.0.1:${PORT} → ${join(DIR, "atrium.db")}`);
+server.listen(PORT, HOST, () => {
+  console.log(`atrium-sync on http://${HOST}:${PORT} → ${join(DIR, "atrium.db")}`);
 });

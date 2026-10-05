@@ -1,13 +1,13 @@
 // Pushes thread changes from the phone to the sync server on the Mac
-// (server/atrium-sync.mjs), reached privately over Tailscale. The phone stays
-// the source of truth: when the Mac is asleep or out of reach, dirty rows just
-// wait and go up on the next attempt.
+// (server/atrium-sync.mjs) over the home network. The phone stays the source of
+// truth: away from home, or with the Mac asleep, dirty rows just wait and go up
+// on the next attempt.
 
 import * as SQLite from "expo-sqlite";
 
-// The Mac's address on the tailnet, served over HTTPS by `tailscale serve`.
-// Empty disables sync.
-export const SYNC_URL = "";
+// The Mac's Bonjour name on the home network (`scutil --get LocalHostName`).
+// The app's build allows plain HTTP to local-network hosts. Empty disables sync.
+export const SYNC_URL = "http://Rits-MacBook-Pro.local:8787";
 
 const BATCH = 200;
 const TIMEOUT_MS = 8000;
