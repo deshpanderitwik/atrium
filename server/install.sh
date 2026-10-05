@@ -48,8 +48,17 @@ cat > "$PLIST" <<EOF
 </plist>
 EOF
 
+# Stop the old copy and wait until launchd has let it go; bootstrapping while
+# it is still unloading fails with "Input/output error".
 launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || break
+  sleep 0.5
+done
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
-sleep 1
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  curl -fsS "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 && break
+  sleep 0.5
+done
 curl -fsS "http://127.0.0.1:$PORT/health" && echo
 echo "Installed $LABEL on $HOST:$PORT — data in $APP/atrium.db, log in $LOG"

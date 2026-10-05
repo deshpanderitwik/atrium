@@ -35,10 +35,7 @@
     padding-block: 0.08em;
     overflow-wrap: anywhere;
   }
-  li.new { animation: arrive 900ms ease-out; }
-  @keyframes arrive { from { opacity: 0; transform: translateY(0.25em); } }
   #empty { color: var(--faint); font-size: clamp(22px, 3vw, 30px); }
-  @media (prefers-reduced-motion: reduce) { li.new { animation: none; } }
 </style>
 </head>
 <body>
@@ -46,36 +43,90 @@
 <p id="empty" hidden>Nothing named yet.</p>
 <script>
   // Reads the names straight from the Mac's sync server and keeps watching, so a
-  // thing named on the phone appears here a few seconds later.
+  // thing named on the phone appears here a few seconds later. Each check only
+  // touches what changed: a new name is added once at the bottom, a removed one
+  // folds away, a renamed one changes in place. An unchanged list leaves the
+  // page alone.
   const list = document.getElementById("names");
   const empty = document.getElementById("empty");
-  let shown = new Map(); // id -> <li>
+  const shown = new Map(); // id -> <li>
+  const still = matchMedia("(prefers-reduced-motion: reduce)");
+  const EASE = "cubic-bezier(.25,.8,.3,1)";
+  let last = null;
+  let loaded = false;
+
+  function arrive(li) {
+    if (still.matches) return;
+    li.animate(
+      [{ opacity: 0, transform: "translateY(0.3em)" }, { opacity: 1, transform: "none" }],
+      { duration: 700, easing: EASE },
+    );
+  }
+
+  function leave(li) {
+    if (still.matches) return li.remove();
+    const h = li.offsetHeight;
+    li.style.overflow = "hidden";
+    li.animate(
+      [{ opacity: 1, height: h + "px" }, { opacity: 0, height: "0px", paddingBlock: "0px" }],
+      { duration: 420, easing: EASE },
+    ).finished.then(() => li.remove(), () => li.remove());
+  }
+
+  function nearBottom() {
+    return innerHeight + scrollY >= document.documentElement.scrollHeight - 160;
+  }
 
   async function refresh() {
-    let objects;
+    let body;
     try {
-      objects = await (await fetch("/api/objects", { cache: "no-store" })).json();
+      body = await (await fetch("/api/objects", { cache: "no-store" })).text();
     } catch {
       return; // server restarting; try again on the next tick
     }
-    const first = shown.size === 0;
-    const next = new Map();
+    if (body === last) return;
+    last = body;
+    const objects = JSON.parse(body);
+    const follow = loaded && nearBottom();
+
+    const ids = new Set(objects.map((o) => o.id));
+    for (const [id, li] of shown) {
+      if (!ids.has(id)) {
+        shown.delete(id);
+        leave(li);
+      }
+    }
+
+    let prev = null;
+    let added = null;
     for (const o of objects) {
       let li = shown.get(o.id);
       if (!li) {
         li = document.createElement("li");
-        if (!first) li.className = "new";
+        li.textContent = o.text;
+        shown.set(o.id, li);
+        prev ? prev.after(li) : list.prepend(li);
+        if (loaded) {
+          arrive(li);
+          added = li;
+        }
+      } else {
+        if (li.textContent !== o.text) li.textContent = o.text;
+        const inPlace = prev ? prev.nextElementSibling === li : list.firstElementChild === li;
+        if (!inPlace) prev ? prev.after(li) : list.prepend(li);
       }
-      li.textContent = o.text;
-      next.set(o.id, li);
+      prev = li;
     }
-    list.replaceChildren(...next.values());
-    shown = next;
+
+    // If you were already at the bottom, glide down to what just arrived.
+    if (added && follow) added.scrollIntoView({ behavior: still.matches ? "auto" : "smooth", block: "end" });
     empty.hidden = objects.length > 0;
+    loaded = true;
   }
 
   refresh();
-  setInterval(refresh, 4000);
+  setInterval(() => document.hidden || refresh(), 4000);
+  document.addEventListener("visibilitychange", () => document.hidden || refresh());
 </script>
 </body>
 </html>
