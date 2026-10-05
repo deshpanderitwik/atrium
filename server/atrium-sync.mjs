@@ -82,6 +82,7 @@ function send(res, status, body) {
 }
 
 const server = http.createServer((req, res) => {
+  console.log(`${new Date().toISOString()} ${req.method} ${req.url} from ${req.socket.remoteAddress}`);
   if (req.method === "GET" && req.url === "/health") {
     return send(res, 200, { ok: true, entries: count.get().n });
   }
