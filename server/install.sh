@@ -3,7 +3,7 @@
 #
 # The server is copied into ~/Library/Application Support/Atrium rather than run
 # from the repo: macOS won't let a background agent read ~/Desktop. Re-run this
-# after changing server/atrium-sync.mjs.
+# after changing server/atrium-sync.mjs or anything in server/public.
 #
 # It answers on the home network (HOST=0.0.0.0), where the phone syncs to
 # http://<LocalHostName>.local:8787. Set HOST=127.0.0.1 to keep it Mac-only.
@@ -21,6 +21,7 @@ NODE="$(command -v node)"
 
 mkdir -p "$APP" "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
 cp "$HERE/atrium-sync.mjs" "$APP/atrium-sync.mjs"
+rm -rf "$APP/public" && cp -R "$HERE/public" "$APP/public"
 
 cat > "$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>

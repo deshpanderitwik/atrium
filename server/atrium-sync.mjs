@@ -10,9 +10,10 @@
 //   ~/Library/Application Support/Atrium/atrium.db   (override: ATRIUM_DATA_DIR)
 
 import http from "node:http";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 
 const PORT = Number(process.env.PORT || 8787);
@@ -52,6 +53,17 @@ const upsert = db.prepare(`
   WHERE excluded.updatedAt >= thread_entries.updatedAt
 `);
 const count = db.prepare("SELECT COUNT(*) AS n FROM thread_entries WHERE deletedAt IS NULL");
+const objects = db.prepare(
+  "SELECT id, text, createdAt FROM thread_entries WHERE kind = 'name' AND deletedAt IS NULL ORDER BY createdAt",
+);
+
+// Pages for looking at the data, served from public/ next to this file. Only
+// these exact paths are served.
+const PUBLIC = join(dirname(fileURLToPath(import.meta.url)), "public");
+const PAGES = {
+  "/": ["index.html", "text/html; charset=utf-8"],
+  "/fonts/BricolageGrotesque_400Regular.ttf": ["fonts/BricolageGrotesque_400Regular.ttf", "font/ttf"],
+};
 
 const isInt = (v) => Number.isInteger(v) && v >= 0;
 const str = (v, max) => (typeof v === "string" && v.length <= max ? v : null);
@@ -85,6 +97,19 @@ const server = http.createServer((req, res) => {
   console.log(`${new Date().toISOString()} ${req.method} ${req.url} from ${req.socket.remoteAddress}`);
   if (req.method === "GET" && req.url === "/health") {
     return send(res, 200, { ok: true, entries: count.get().n });
+  }
+  if (req.method === "GET" && req.url === "/api/objects") {
+    return send(res, 200, objects.all());
+  }
+  if (req.method === "GET" && PAGES[req.url]) {
+    const [file, type] = PAGES[req.url];
+    try {
+      const body = readFileSync(join(PUBLIC, file));
+      res.writeHead(200, { "content-type": type, "cache-control": "no-cache" });
+      return res.end(body);
+    } catch {
+      return send(res, 404, { ok: false, error: "not found" });
+    }
   }
   if (req.method === "POST" && req.url === "/entries") {
     let size = 0;

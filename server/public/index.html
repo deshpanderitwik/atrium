@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Objects</title>
+<style>
+  /* Just the names of the things, each on its own line, large enough to see.
+     Nothing else on the page yet; it grows as the work does. */
+  @font-face {
+    font-family: "Bricolage";
+    src: url("/fonts/BricolageGrotesque_400Regular.ttf") format("truetype");
+    font-display: swap;
+  }
+  :root {
+    --bg: #0e0d0c;
+    --ink: #f2eee6;
+    --faint: #56504a;
+    color-scheme: dark;
+  }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: "Bricolage", ui-sans-serif, system-ui, sans-serif;
+    min-height: 100vh;
+    padding-block: max(12vh, env(safe-area-inset-top)) 20vh;
+    padding-inline: max(7vw, 20px);
+    box-sizing: border-box;
+  }
+  ol { list-style: none; margin: 0; padding: 0; }
+  li {
+    font-size: clamp(30px, 6.4vw, 72px);
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    padding-block: 0.08em;
+    overflow-wrap: anywhere;
+  }
+  li.new { animation: arrive 900ms ease-out; }
+  @keyframes arrive { from { opacity: 0; transform: translateY(0.25em); } }
+  #empty { color: var(--faint); font-size: clamp(22px, 3vw, 30px); }
+  @media (prefers-reduced-motion: reduce) { li.new { animation: none; } }
+</style>
+</head>
+<body>
+<ol id="names"></ol>
+<p id="empty" hidden>Nothing named yet.</p>
+<script>
+  // Reads the names straight from the Mac's sync server and keeps watching, so a
+  // thing named on the phone appears here a few seconds later.
+  const list = document.getElementById("names");
+  const empty = document.getElementById("empty");
+  let shown = new Map(); // id -> <li>
+
+  async function refresh() {
+    let objects;
+    try {
+      objects = await (await fetch("/api/objects", { cache: "no-store" })).json();
+    } catch {
+      return; // server restarting; try again on the next tick
+    }
+    const first = shown.size === 0;
+    const next = new Map();
+    for (const o of objects) {
+      let li = shown.get(o.id);
+      if (!li) {
+        li = document.createElement("li");
+        if (!first) li.className = "new";
+      }
+      li.textContent = o.text;
+      next.set(o.id, li);
+    }
+    list.replaceChildren(...next.values());
+    shown = next;
+    empty.hidden = objects.length > 0;
+  }
+
+  refresh();
+  setInterval(refresh, 4000);
+</script>
+</body>
+</html>
