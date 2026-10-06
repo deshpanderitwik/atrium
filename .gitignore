@@ -36,3 +36,6 @@ npm-debug.*
 .env*.local
 ios/
 android/
+
+# Generated Xcode project left over from the archived SwiftUI app (see archive/)
+/Atrium/
