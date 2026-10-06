@@ -70,16 +70,18 @@ db.exec(`
     note TEXT,
     done INTEGER NOT NULL DEFAULT 0,
     doneAt INTEGER,            -- ms since epoch, when it was tapped done
-    approx INTEGER NOT NULL DEFAULT 0  -- 1 = doneAt was estimated afterwards
+    approx INTEGER NOT NULL DEFAULT 0, -- 1 = doneAt was estimated afterwards
+    held INTEGER NOT NULL DEFAULT 0    -- 1 = paused; skipped when finding "now"
   );
 `);
 {
   const cols = new Set(db.prepare("PRAGMA table_info(plan_items)").all().map((c) => c.name));
   if (!cols.has("doneAt")) db.exec("ALTER TABLE plan_items ADD COLUMN doneAt INTEGER");
   if (!cols.has("approx")) db.exec("ALTER TABLE plan_items ADD COLUMN approx INTEGER NOT NULL DEFAULT 0");
+  if (!cols.has("held")) db.exec("ALTER TABLE plan_items ADD COLUMN held INTEGER NOT NULL DEFAULT 0");
 }
 const planBlocks = db.prepare(
-  "SELECT id, time, title, note, done, doneAt, approx FROM plan_items WHERE date = ? ORDER BY position",
+  "SELECT id, time, title, note, done, doneAt, approx, held FROM plan_items WHERE date = ? ORDER BY position",
 );
 const planLoops = db.prepare(
   "SELECT id, title, note, done, doneAt FROM plan_items WHERE date IS NULL ORDER BY position",
