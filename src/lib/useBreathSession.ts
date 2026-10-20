@@ -110,11 +110,23 @@ export function useBreathSession(onFinish: (r: BreathResult) => void) {
           cancelAnimation(scale);
           scale.value = withTiming(1, { duration: 500 });
         }
+        // The track loops straight into the next round's first pluck at 70s,
+        // the same instant the session ends, so stopping then always lets a
+        // pluck or two slip out. In the last round, stop the audio a second
+        // into the rest instead: the last pluck has died away and the track
+        // is silent until 70s, so it ends in silence.
+        if (
+          pos === BREATH_SECONDS + 1 &&
+          config.rounds != null &&
+          Math.floor(b / PERIOD_SECONDS) === config.rounds - 1
+        ) {
+          audio.stop();
+        }
         // Audio mode taps out the rest seconds; silent mode's rest is fully quiet.
         if (!config.silent) haptics.rigid();
       }
     },
-    [easeCycle, scale],
+    [audio, easeCycle, scale],
   );
 
   const start = useCallback(
