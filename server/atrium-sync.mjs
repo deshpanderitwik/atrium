@@ -53,9 +53,27 @@ const upsert = db.prepare(`
   WHERE excluded.updatedAt >= thread_entries.updatedAt
 `);
 const count = db.prepare("SELECT COUNT(*) AS n FROM thread_entries WHERE deletedAt IS NULL");
-const objects = db.prepare(
-  "SELECT id, text, createdAt FROM thread_entries WHERE kind = 'name' AND deletedAt IS NULL ORDER BY createdAt",
-);
+// Categories for the named things. Claude writes these rows; the objects page
+// groups the names under them, in position order. A name with no category
+// (say, one just named on the phone) shows under "not sorted yet".
+db.exec(`
+  CREATE TABLE IF NOT EXISTS categories (
+    key TEXT PRIMARY KEY NOT NULL,
+    title TEXT NOT NULL,
+    position INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS object_categories (
+    entryId TEXT PRIMARY KEY NOT NULL, -- thread_entries.id of a name
+    category TEXT NOT NULL             -- categories.key
+  );
+`);
+const categories = db.prepare("SELECT key, title FROM categories ORDER BY position");
+const objects = db.prepare(`
+  SELECT e.id, e.text, e.createdAt, c.category
+  FROM thread_entries e LEFT JOIN object_categories c ON c.entryId = e.id
+  WHERE e.kind = 'name' AND e.deletedAt IS NULL
+  ORDER BY e.createdAt
+`);
 
 // The day's plan: time blocks for a given date, plus parked loops (date NULL)
 // each with its first step. Claude writes these rows; the Today page reads
@@ -91,6 +109,24 @@ const planLoops = db.prepare(
 const toggleItem = db.prepare(
   "UPDATE plan_items SET done = 1 - done, doneAt = CASE WHEN done = 0 THEN ? ELSE NULL END, approx = 0 WHERE id = ?",
 );
+// A scratch week plan for the /week page: one-off, separate from plan_items so
+// it can be thrown away without touching the Today page.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS week_blocks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,        -- 'YYYY-MM-DD'
+    start TEXT NOT NULL,       -- '08:00'
+    end TEXT NOT NULL,         -- '16:00'; '24:00' for midnight
+    title TEXT NOT NULL,
+    note TEXT,
+    kind TEXT NOT NULL DEFAULT 'fixed' -- 'fixed', 'maybe' (tentative), 'plan', or 'open'
+  );
+`);
+const weekBlocks = db.prepare(
+  "SELECT id, date, start, end, title, note, kind FROM week_blocks WHERE date BETWEEN ? AND ? ORDER BY date, start",
+);
+const isDate = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
+
 const localDate = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -102,6 +138,7 @@ const PUBLIC = join(dirname(fileURLToPath(import.meta.url)), "public");
 const PAGES = {
   "/": ["index.html", "text/html; charset=utf-8"],
   "/today": ["today.html", "text/html; charset=utf-8"],
+  "/week": ["week.html", "text/html; charset=utf-8"],
   "/fonts/BricolageGrotesque_400Regular.ttf": ["fonts/BricolageGrotesque_400Regular.ttf", "font/ttf"],
 };
 
@@ -139,11 +176,18 @@ const server = http.createServer((req, res) => {
     return send(res, 200, { ok: true, entries: count.get().n });
   }
   if (req.method === "GET" && req.url === "/api/objects") {
-    return send(res, 200, objects.all());
+    return send(res, 200, { categories: categories.all(), objects: objects.all() });
   }
   if (req.method === "GET" && req.url === "/api/today") {
     const date = localDate();
     return send(res, 200, { date, blocks: planBlocks.all(date), loops: planLoops.all() });
+  }
+  if (req.method === "GET" && req.url.startsWith("/api/week?")) {
+    const q = new URL(req.url, "http://x").searchParams;
+    const from = q.get("from");
+    const to = q.get("to");
+    if (!isDate(from) || !isDate(to)) return send(res, 400, { ok: false, error: "from and to must be YYYY-MM-DD" });
+    return send(res, 200, weekBlocks.all(from, to));
   }
   const toggle = req.method === "POST" && /^\/api\/plan\/(\d+)\/toggle$/.exec(req.url);
   if (toggle) {

@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>This week</title>
+<style>
+  /* A scratch page for planning one week, Tuesday to Sunday: every day side
+     by side on one screen, filled in a block at a time. Disposable — it
+     reads its own week_blocks table and nothing else depends on it. */
+  @font-face {
+    font-family: "Bricolage";
+    src: url("/fonts/BricolageGrotesque_400Regular.ttf") format("truetype");
+    font-display: swap;
+  }
+  :root {
+    --bg: #0e0d0c;
+    --ink: #f2eee6;
+    --soft: #a89f94;
+    --faint: #56504a;
+    --line: #1d1b19;
+    --hot: #ff6a2b;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --hour: 40px; /* set from the window height so the whole day fits */
+    --gutter: 34px;
+    color-scheme: dark;
+  }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: "Bricolage", ui-sans-serif, system-ui, sans-serif;
+    min-height: 100vh;
+    padding: max(20px, env(safe-area-inset-top)) max(3vw, 16px) 24px;
+    box-sizing: border-box;
+  }
+  .week {
+    display: grid;
+    grid-template-columns: var(--gutter) repeat(6, minmax(0, 1fr));
+    column-gap: clamp(3px, 0.8vw, 10px);
+  }
+  .head {
+    padding-bottom: 12px;
+    font-size: clamp(13px, 1.5vw, 17px);
+    color: var(--soft);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .head .d { color: var(--faint); margin-left: 0.35em; font-variant-numeric: tabular-nums; }
+  .head.today { color: var(--hot); }
+  .head.today .d { color: var(--hot); opacity: 0.6; }
+  .hours, .day { position: relative; height: calc(var(--hours) * var(--hour)); }
+  .hours span {
+    position: absolute;
+    right: 6px;
+    transform: translateY(-50%);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--faint);
+  }
+  .day {
+    border-radius: 10px;
+    background:
+      repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px var(--hour));
+  }
+  .block {
+    position: absolute;
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--hot) 16%, var(--bg));
+    color: var(--hot);
+  }
+  .block .t {
+    display: block;
+    font-size: clamp(12px, 1.4vw, 16px);
+    line-height: 1.15;
+    overflow-wrap: break-word;
+  }
+  .block .r {
+    display: block;
+    margin-top: 3px;
+    font-family: var(--mono);
+    font-size: 10px;
+    opacity: 0.7;
+    white-space: nowrap;
+  }
+  .block .n {
+    display: block;
+    margin-top: 6px;
+    font-size: clamp(10px, 1.1vw, 13px);
+    line-height: 1.25;
+    opacity: 0.75;
+  }
+  .block.maybe { background: color-mix(in srgb, var(--hot) 7%, var(--bg)); color: color-mix(in srgb, var(--hot) 70%, var(--bg)); }
+  .block.plan { background: #2a2622; color: var(--ink); }
+  .block.open { background: transparent; color: var(--faint); font-style: italic; }
+  .block.short .r { display: none; }
+  @media (max-width: 560px) {
+    .block { padding: 5px; border-radius: 8px; }
+    .day { border-radius: 8px; }
+    .block .r { white-space: normal; font-size: 9px; overflow-wrap: anywhere; }
+  }
+</style>
+</head>
+<body>
+<div class="week" id="week"></div>
+<script>
+  // The week being planned. It's a one-off, so the dates live right here.
+  const FROM = "2026-10-20";
+  const DAYS = 6; // Tuesday through Sunday
+  const FIRST = 6; // earliest hour shown, unless a block starts sooner
+  const LAST = 24; // latest hour shown, unless a block runs later
+
+  const week = document.getElementById("week");
+  const dates = Array.from({ length: DAYS }, (_, i) => {
+    const d = new Date(FROM + "T12:00:00");
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+  const iso = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const mins = (t) => {
+    const [h, m] = t.split(":").map(Number);
+    return h * 60 + m;
+  };
+  // 8:00 → "8", 19:15 → "7:15", 24:00 → "midnight"
+  const clock = (t) => {
+    const m = mins(t);
+    if (m === 24 * 60 || m === 0) return "midnight";
+    if (m === 12 * 60) return "noon";
+    const h = Math.floor(m / 60) % 12 || 12;
+    return m % 60 ? `${h}:${String(m % 60).padStart(2, "0")}` : String(h);
+  };
+
+  let last = null;
+
+  function render(blocks) {
+    const first = Math.min(FIRST, ...blocks.map((b) => Math.floor(mins(b.start) / 60)));
+    const lastH = Math.max(LAST, ...blocks.map((b) => Math.ceil(mins(b.end) / 60)));
+    const hours = lastH - first;
+    document.documentElement.style.setProperty("--hours", hours);
+    fit(hours);
+
+    const today = iso(new Date());
+    const cells = [document.createElement("div")];
+    for (const d of dates) {
+      const h = document.createElement("div");
+      h.className = "head" + (iso(d) === today ? " today" : "");
+      h.textContent = d.toLocaleDateString(undefined, { weekday: "short" });
+      const n = document.createElement("span");
+      n.className = "d";
+      n.textContent = d.getDate();
+      h.append(n);
+      cells.push(h);
+    }
+
+    const gutter = document.createElement("div");
+    gutter.className = "hours";
+    for (let h = first + 1; h < lastH; h++) {
+      const s = document.createElement("span");
+      s.style.top = `calc(${h - first} * var(--hour))`;
+      s.textContent = h === 12 ? "noon" : String(h % 12 || 12);
+      gutter.append(s);
+    }
+    cells.push(gutter);
+
+    for (const d of dates) {
+      const col = document.createElement("div");
+      col.className = "day";
+      for (const b of blocks.filter((b) => b.date === iso(d))) {
+        const top = (mins(b.start) - first * 60) / 60;
+        const len = (mins(b.end) - mins(b.start)) / 60;
+        const el = document.createElement("div");
+        el.className = `block ${b.kind}` + (len < 1 ? " short" : "");
+        el.style.top = `calc(${top} * var(--hour) + 1px)`;
+        el.style.height = `calc(${len} * var(--hour) - 2px)`;
+        const t = document.createElement("span");
+        t.className = "t";
+        t.textContent = b.title;
+        const r = document.createElement("span");
+        r.className = "r";
+        r.textContent = `${clock(b.start)}–${clock(b.end)}`;
+        el.append(t, r);
+        if (b.note) {
+          const n = document.createElement("span");
+          n.className = "n";
+          n.textContent = b.note;
+          el.append(n);
+        }
+        col.append(el);
+      }
+      cells.push(col);
+    }
+    week.replaceChildren(...cells);
+  }
+
+  // Size an hour so the whole span fits the window, but never so small the
+  // titles can't be read.
+  function fit(hours) {
+    const room = innerHeight - week.getBoundingClientRect().top - 70;
+    document.documentElement.style.setProperty("--hour", Math.max(26, room / hours) + "px");
+  }
+
+  async function refresh() {
+    let body;
+    try {
+      const to = iso(dates[DAYS - 1]);
+      body = await (await fetch(`/api/week?from=${FROM}&to=${to}`, { cache: "no-store" })).text();
+    } catch {
+      return; // server restarting; try again on the next tick
+    }
+    if (body === last) return;
+    last = body;
+    render(JSON.parse(body));
+  }
+
+  refresh();
+  setInterval(() => document.hidden || refresh(), 4000);
+  document.addEventListener("visibilitychange", () => document.hidden || refresh());
+  addEventListener("resize", () => last && render(JSON.parse(last)));
+</script>
+</body>
+</html>
