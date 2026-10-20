@@ -1,34 +1,30 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Keyboard, Pressable, ScrollView, TextInput, View } from "react-native";
+import { AppState, Keyboard, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { night } from "@/theme";
 import { haptics } from "@/lib/haptics";
 import { getSetting, setSetting } from "@/lib/settings";
 import { BreathConfig, BreathPattern, cycleSeconds } from "@/lib/breath";
 import { BreathResult, useBreathSession } from "@/lib/useBreathSession";
-import { NameEntry, useThread } from "@/db/thread";
-import { Frame, ThreadList } from "@/components/thread/ThreadList";
-import { LiftedName } from "@/components/thread/LiftedName";
+import { useThread } from "@/db/thread";
+import { useChat } from "@/db/chat";
+import { ThreadList } from "@/components/thread/ThreadList";
 import { Belt, BeltMode } from "@/components/thread/Belt";
 
 const PATTERN_KEY = "breathPattern";
 const ROUNDS_KEY = "breathRounds"; // "0" = until stopped
 const SILENT_KEY = "breathSilent";
 
-// The thread — the single home screen. The day in time order (named things and
-// breath sessions), with the belt at the bottom: breathe · text box · send.
+// The station — the single home screen. One long conversation with Claude and
+// the breath sessions between, with the belt at the bottom: breathe · text box
+// · send. It opens ready to write, since you come here mid-slip.
 export default function Thread() {
   const insets = useSafeAreaInsets();
-  const { entries, addName, renameName, addBreath, removeEntry } = useThread();
+  const { entries, addBreath } = useThread();
+  const chat = useChat();
   const inputRef = useRef<TextInput>(null);
   const scrollRef = useRef<ScrollView>(null);
-  // Where a pill sits on screen is worked out from its place in the list, the
-  // list's origin and how far it has scrolled. (Measuring the pill against the
-  // window directly ignores the scroll on this React Native version, which sent
-  // the lifted pill off screen once the list got long.)
-  const contentRef = useRef<View>(null);
-  const listOrigin = useRef({ x: 0, y: 0 });
-  const scrollY = useRef(0);
+  const [sinceMount] = useState(() => Date.now());
 
   const [mode, setMode] = useState<BeltMode>("compose");
   const [text, setTextState] = useState("");
@@ -46,9 +42,6 @@ export default function Thread() {
   };
   const [focused, setFocused] = useState(false);
   const [warn, setWarn] = useState(0);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [freshId, setFreshId] = useState<string | null>(null);
-  const [lifted, setLifted] = useState<{ entry: NameEntry; frame: Frame } | null>(null);
   const [config, setConfig] = useState<BreathConfig>({ pattern: "4-6", rounds: 3, silent: false });
 
   // Restore the last-used breath setup.
@@ -86,36 +79,42 @@ export default function Thread() {
       setMode("compose");
       if (seconds < cycleSeconds(c.pattern)) return;
       haptics.success();
-      const id = await addBreath({
+      await addBreath({
         pattern: c.pattern,
         rounds,
         seconds: Math.round(seconds),
         silent: c.silent,
       });
-      setFreshId(id);
     },
     [addBreath],
   );
   const session = useBreathSession(onFinish);
 
+  // Come back ready to write: on open, and whenever the app returns.
+  // Twice: on a cold start the belt's text box can mount after the first try.
+  const focusComposer = useCallback(() => {
+    setTimeout(() => inputRef.current?.focus(), 250);
+    setTimeout(() => inputRef.current?.focus(), 800);
+  }, []);
+  useEffect(() => {
+    focusComposer();
+    const sub = AppState.addEventListener("change", (s) => {
+      if (s === "active" && mode === "compose") focusComposer();
+    });
+    return () => sub.remove();
+  }, [focusComposer, mode]);
+
+  // Send keeps the keyboard up, so the next thought can follow.
   const send = async (submitted?: string) => {
-    const v = (submitted ?? textRef.current).trim().replace(/\s+/g, " ");
+    const v = (submitted ?? textRef.current).trim();
     if (!v) {
       setWarn((w) => w + 1);
       haptics.warning();
       return;
     }
-    if (editingId) {
-      await renameName(editingId, v);
-      setEditingId(null);
-      clearText();
-      Keyboard.dismiss();
-      return;
-    }
     clearText();
     haptics.light();
-    const id = await addName(v);
-    setFreshId(id);
+    await chat.send(v);
   };
 
   // Tapping the thread puts away whatever is open.
@@ -125,10 +124,6 @@ export default function Thread() {
       return;
     }
     Keyboard.dismiss();
-    if (editingId) {
-      setEditingId(null);
-      clearText();
-    }
   };
 
   const openSetup = () => {
@@ -143,64 +138,10 @@ export default function Thread() {
     session.start(config);
   };
 
-  const onLongPressName = (entry: NameEntry, node: View) => {
-    if (mode !== "compose") return;
-    // Closing the keyboard moves the list, so let it settle before measuring.
-    if (Keyboard.isVisible()) {
-      Keyboard.dismiss();
-      setTimeout(() => liftName(entry, node), 320);
-    } else {
-      liftName(entry, node);
-    }
-  };
-
-  const liftName = (entry: NameEntry, node: View) => {
-    if (!contentRef.current) return;
-    node.measureLayout(
-      contentRef.current,
-      (x, y, width, height) => {
-        haptics.rigid();
-        setLifted({
-          entry,
-          frame: {
-            x: listOrigin.current.x + x,
-            y: listOrigin.current.y + y - scrollY.current,
-            width,
-            height,
-          },
-        });
-      },
-      () => {},
-    );
-  };
-
-  const editLifted = () => {
-    if (!lifted) return;
-    setEditingId(lifted.entry.id);
-    setText(lifted.entry.text);
-    setLifted(null);
-    setTimeout(() => inputRef.current?.focus(), 200);
-  };
-
-  const deleteLifted = () => {
-    if (!lifted) return;
-    const id = lifted.entry.id;
-    setLifted(null);
-    haptics.light();
-    removeEntry(id);
-  };
-
   return (
     <View style={{ flex: 1, backgroundColor: night.bg }}>
       <ScrollView
         ref={scrollRef}
-        onLayout={(e) => {
-          listOrigin.current = { x: e.nativeEvent.layout.x, y: e.nativeEvent.layout.y };
-        }}
-        onScroll={(e) => {
-          scrollY.current = e.nativeEvent.contentOffset.y;
-        }}
-        scrollEventThrottle={16}
         style={{ opacity: mode === "dock" ? 0 : 1 }}
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
@@ -208,10 +149,7 @@ export default function Thread() {
         onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         contentContainerStyle={{ flexGrow: 1 }}
       >
-        {/* Padding lives here, not on the content container, so a pill measured
-            against this view already includes it. */}
         <Pressable
-          ref={contentRef}
           onPress={dismiss}
           style={{
             flexGrow: 1,
@@ -221,15 +159,17 @@ export default function Thread() {
           }}
         >
           <ThreadList
-            entries={entries}
-            freshId={freshId}
-            liftedId={lifted?.entry.id ?? null}
-            onLongPressName={onLongPressName}
+            breaths={entries}
+            messages={chat.messages}
+            live={chat.live}
+            status={chat.status}
+            onRetry={chat.retry}
+            sinceMount={sinceMount}
           />
         </Pressable>
       </ScrollView>
 
-      {/* Keeps scrolled names from running under the clock: solid behind the
+      {/* Keeps the scrolled thread from running under the clock: solid behind the
           status bar, then a short fade. */}
       <View
         pointerEvents="none"
@@ -253,7 +193,8 @@ export default function Thread() {
         onOpenSetup={openSetup}
         focused={focused}
         onFocusChange={setFocused}
-        editing={editingId != null}
+        editing={false}
+        hint={chat.hasKey ? "what's here" : "paste your API key"}
         warn={warn}
         config={config}
         onConfig={updateConfig}
@@ -267,15 +208,6 @@ export default function Thread() {
         onEnd={session.stop}
       />
 
-      {lifted && (
-        <LiftedName
-          entry={lifted.entry}
-          frame={lifted.frame}
-          onEdit={editLifted}
-          onDelete={deleteLifted}
-          onDismiss={() => setLifted(null)}
-        />
-      )}
     </View>
   );
 }

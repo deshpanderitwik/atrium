@@ -9,6 +9,7 @@ import { night } from "@/theme";
 import { TodosProvider } from "@/db/store";
 import { ReflectionsProvider } from "@/db/reflections";
 import { ThreadProvider } from "@/db/thread";
+import { ChatProvider } from "@/db/chat";
 import { BricolageGrotesque_400Regular } from "@expo-google-fonts/bricolage-grotesque/400Regular";
 import { BricolageGrotesque_700Bold } from "@expo-google-fonts/bricolage-grotesque/700Bold";
 import { BricolageGrotesque_800ExtraBold } from "@expo-google-fonts/bricolage-grotesque/800ExtraBold";
@@ -41,14 +42,16 @@ export default function RootLayout() {
         <TodosProvider>
           <ReflectionsProvider>
             <ThreadProvider>
-              <StatusBar style="light" />
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: night.bg },
-                  animation: "slide_from_right",
-                }}
-              />
+              <ChatProvider>
+                <StatusBar style="light" />
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: night.bg },
+                    animation: "slide_from_right",
+                  }}
+                />
+              </ChatProvider>
             </ThreadProvider>
           </ReflectionsProvider>
         </TodosProvider>

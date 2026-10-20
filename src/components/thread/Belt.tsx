@@ -1,5 +1,6 @@
 // The belt: one surface at the bottom of the thread that becomes whatever the
-// moment needs. At rest it is a composer — breathe · text box · send. Tapping
+// moment needs. At rest it is a composer — breathe · text box · send — and the
+// text box grows as you write. Tapping
 // breathe opens the breath setup in place; starting rises it over the thread as
 // the session dock; ending sinks it back.
 
@@ -90,6 +91,7 @@ type Props = {
   focused: boolean;
   onFocusChange: (f: boolean) => void;
   editing: boolean;
+  hint: string; // the text box's placeholder
   warn: number; // bumps on each empty send; 0 once typing resumes
   // setup
   config: BreathConfig;
@@ -192,9 +194,11 @@ const Composer = forwardRef<TextInput, Props>(function Composer(p, ref) {
   const breatheW = useSharedValue(BTN);
   const shake = useSharedValue(0);
 
+  // Writing tucks breathe away; an empty box keeps it one tap off, keyboard or not.
+  const writing = p.text.length > 0;
   useEffect(() => {
-    breatheW.value = withTiming(p.focused ? 0 : BTN, { duration: 280, easing: OUT });
-  }, [p.focused, breatheW]);
+    breatheW.value = withTiming(writing ? 0 : BTN, { duration: 280, easing: OUT });
+  }, [writing, breatheW]);
 
   useEffect(() => {
     if (p.warn) {
@@ -217,7 +221,7 @@ const Composer = forwardRef<TextInput, Props>(function Composer(p, ref) {
   const empty = !p.text.trim();
 
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", padding: PAD }}>
+    <View style={{ flexDirection: "row", alignItems: "flex-end", padding: PAD }}>
       <Animated.View style={[{ height: BTN, overflow: "hidden" }, breatheStyle]}>
         <Pressable
           onPress={p.onOpenSetup}
@@ -242,26 +246,32 @@ const Composer = forwardRef<TextInput, Props>(function Composer(p, ref) {
           onFocus={() => p.onFocusChange(true)}
           onBlur={() => p.onFocusChange(false)}
           onSubmitEditing={(e) => p.onSend(e.nativeEvent.text)}
+          // Wraps as you write; return still sends.
+          multiline
           submitBehavior="submit"
-          returnKeyType={p.editing ? "done" : "send"}
-          placeholder={p.warn && !p.text ? "type a name first" : p.editing ? "rename" : "what do you see"}
+          returnKeyType="send"
+          placeholder={p.warn && !p.text ? "say something first" : p.hint}
           placeholderTextColor={p.warn && !p.text ? night.danger : night.faint}
           keyboardAppearance="dark"
-          autoCapitalize="none"
+          autoCapitalize="sentences"
           selectionColor={night.hot}
           style={{
-            height: BTN,
+            minHeight: BTN,
+            maxHeight: 148,
             borderRadius: BTN / 2,
             backgroundColor: night.well,
             color: night.ink,
             paddingHorizontal: 18,
+            paddingTop: 16,
+            paddingBottom: 15,
             ...brico(17),
+            lineHeight: 22,
           }}
         />
       </Animated.View>
       <Pressable
         onPress={() => p.onSend()}
-        accessibilityLabel={p.editing ? "Save name" : "Send"}
+        accessibilityLabel="Send"
         style={{
           width: BTN,
           height: BTN,
@@ -273,7 +283,7 @@ const Composer = forwardRef<TextInput, Props>(function Composer(p, ref) {
           opacity: empty ? 0.35 : 1,
         }}
       >
-        <Feather name={p.editing ? "check" : "arrow-up"} size={22} color={night.bg} />
+        <Feather name="arrow-up" size={22} color={night.bg} />
       </Pressable>
     </View>
   );

@@ -1,6 +1,7 @@
-// Thread store — the day as one timeline: things named during a walkthrough and
-// breath sessions, in the order they happened. Lives in atrium.db beside the
-// older todos and reflections tables, which it leaves untouched.
+// Thread store — the breath sessions, in the order they happened. (It also held
+// the things named during the walkthrough; those now live only in the Mac's
+// archive.) Lives in atrium.db beside the older todos and reflections tables,
+// which it leaves untouched. The conversation itself is in src/db/chat.tsx.
 //
 // The phone is the source of truth and works offline. Every change marks its
 // row dirty and bumps updatedAt; deletes are soft (deletedAt) so they can sync
@@ -19,7 +20,6 @@ import React, {
 import type { BreathPattern } from "@/lib/breath";
 import { scheduleSync } from "@/lib/sync";
 
-export type NameEntry = { id: string; kind: "name"; text: string; createdAt: number };
 export type BreathEntry = {
   id: string;
   kind: "breath";
@@ -29,7 +29,7 @@ export type BreathEntry = {
   silent: boolean;
   createdAt: number;
 };
-export type ThreadEntry = NameEntry | BreathEntry;
+export type ThreadEntry = BreathEntry;
 
 type Row = {
   id: string;
@@ -75,6 +75,9 @@ async function getDb() {
       if (!have.has("dirty")) {
         await db.execAsync("ALTER TABLE thread_entries ADD COLUMN dirty INTEGER NOT NULL DEFAULT 1");
       }
+      // The station starts fresh: the named things leave the phone. This is a
+      // plain local delete, never synced, so the Mac keeps its archive.
+      await db.execAsync("DELETE FROM thread_entries WHERE kind = 'name'");
       return db;
     })();
   }
@@ -90,25 +93,20 @@ function uuid(): string {
 }
 
 function fromRow(r: Row): ThreadEntry {
-  if (r.kind === "breath") {
-    return {
-      id: r.id,
-      kind: "breath",
-      pattern: r.pattern === "5-5" ? "5-5" : "4-6",
-      rounds: r.rounds ?? 0,
-      seconds: r.seconds ?? 0,
-      silent: r.silent === 1,
-      createdAt: r.createdAt,
-    };
-  }
-  return { id: r.id, kind: "name", text: r.text ?? "", createdAt: r.createdAt };
+  return {
+    id: r.id,
+    kind: "breath",
+    pattern: r.pattern === "5-5" ? "5-5" : "4-6",
+    rounds: r.rounds ?? 0,
+    seconds: r.seconds ?? 0,
+    silent: r.silent === 1,
+    createdAt: r.createdAt,
+  };
 }
 
 type Store = {
   entries: ThreadEntry[]; // oldest first
   ready: boolean;
-  addName: (text: string) => Promise<string>;
-  renameName: (id: string, text: string) => Promise<void>;
   addBreath: (b: Omit<BreathEntry, "id" | "kind" | "createdAt">) => Promise<string>;
   removeEntry: (id: string) => Promise<void>;
 };
@@ -122,7 +120,7 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
     const db = await getDb();
     const rows = await db.getAllAsync<Row>(
-      "SELECT * FROM thread_entries WHERE deletedAt IS NULL ORDER BY createdAt ASC",
+      "SELECT * FROM thread_entries WHERE kind = 'breath' AND deletedAt IS NULL ORDER BY createdAt ASC",
     );
     setEntries(rows.map(fromRow));
   }, []);
@@ -141,35 +139,6 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
     });
     return () => sub.remove();
   }, [refresh]);
-
-  const addName = useCallback(
-    async (text: string) => {
-      const id = uuid();
-      const now = Date.now();
-      const db = await getDb();
-      await db.runAsync(
-        "INSERT INTO thread_entries (id, kind, text, createdAt, updatedAt, dirty) VALUES (?, 'name', ?, ?, ?, 1)",
-        [id, text, now, now],
-      );
-      await refresh();
-      scheduleSync();
-      return id;
-    },
-    [refresh],
-  );
-
-  const renameName = useCallback(
-    async (id: string, text: string) => {
-      const db = await getDb();
-      await db.runAsync(
-        "UPDATE thread_entries SET text = ?, updatedAt = ?, dirty = 1 WHERE id = ?",
-        [text, Date.now(), id],
-      );
-      await refresh();
-      scheduleSync();
-    },
-    [refresh],
-  );
 
   const addBreath = useCallback(
     async (b: Omit<BreathEntry, "id" | "kind" | "createdAt">) => {
@@ -203,8 +172,8 @@ export function ThreadProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ entries, ready, addName, renameName, addBreath, removeEntry }),
-    [entries, ready, addName, renameName, addBreath, removeEntry],
+    () => ({ entries, ready, addBreath, removeEntry }),
+    [entries, ready, addBreath, removeEntry],
   );
   return <ThreadContext.Provider value={value}>{children}</ThreadContext.Provider>;
 }

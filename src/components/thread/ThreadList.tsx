@@ -1,27 +1,29 @@
-// The day as one thread: day headings, then blocks in time order — a breath
-// capsule for each session, and runs of named things as wrapping pills. A new
-// entry unrolls from its left edge, box first, letters after.
+// The thread: the conversation and the breath sessions, in the order they
+// happened, under day headings. Your words sit on the right in the hot wash;
+// Claude's sit on the left in Garamond, and arrive as they are written — a
+// steady reveal whose last few letters are still settling into ink.
 
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import Animated, {
   Easing,
-  EntryExitAnimationFunction,
-  LinearTransition,
-  withDelay,
+  FadeIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { brico, label, night } from "@/theme";
-import { BreathEntry, NameEntry, ThreadEntry } from "@/db/thread";
+import { brico, garamond, label, night } from "@/theme";
+import { BreathEntry } from "@/db/thread";
+import { ChatMessage, ChatStatus } from "@/db/chat";
 import { clock, patternLabel } from "@/lib/breath";
 
-const RUN_GAP_MS = 30 * 60 * 1000; // names further apart than this start a new run
-const OUT = Easing.bezier(0.25, 0.8, 0.3, 1);
+const GAP_MS = 30 * 60 * 1000; // a quiet stretch this long gets a time label
 
-type Block =
-  | { kind: "breath"; time: number; entry: BreathEntry }
-  | { kind: "names"; time: number; items: NameEntry[] };
-type Day = { key: string; label: string; blocks: Block[] };
+type Item =
+  | { kind: "breath"; id: string; time: number; entry: BreathEntry }
+  | { kind: "message"; id: string; time: number; message: ChatMessage }
+  | { kind: "live"; id: string; time: number; text: string };
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const hhmm = (t: number) => {
@@ -41,129 +43,16 @@ function dayLabel(t: number) {
     .toUpperCase();
 }
 
-function group(entries: ThreadEntry[]): Day[] {
-  const days: Day[] = [];
-  for (const e of entries) {
-    let day = days[days.length - 1];
-    if (!day || day.key !== dayKey(e.createdAt)) {
-      day = { key: dayKey(e.createdAt), label: dayLabel(e.createdAt), blocks: [] };
-      days.push(day);
-    }
-    const last = day.blocks[day.blocks.length - 1];
-    if (e.kind === "breath") {
-      day.blocks.push({ kind: "breath", time: e.createdAt, entry: e });
-    } else if (
-      last?.kind === "names" &&
-      e.createdAt - last.items[last.items.length - 1].createdAt < RUN_GAP_MS
-    ) {
-      last.items.push(e);
-    } else {
-      day.blocks.push({ kind: "names", time: e.createdAt, items: [e] });
-    }
-  }
-  return days;
-}
-
 export const breathCaption = (b: BreathEntry) =>
   (b.rounds ? `${b.rounds} round${b.rounds > 1 ? "s" : ""} · ` : "") +
   `${patternLabel(b.pattern)} · ${clock(b.seconds)}` +
   (b.silent ? " · silent" : "");
 
-const unroll: EntryExitAnimationFunction = () => {
-  "worklet";
-  return {
-    initialValues: { transform: [{ scaleX: 0 }], opacity: 0.4 },
-    animations: {
-      transform: [{ scaleX: withTiming(1, { duration: 340, easing: OUT }) }],
-      opacity: withTiming(1, { duration: 120 }),
-    },
-  };
-};
-
-const rollUp: EntryExitAnimationFunction = () => {
-  "worklet";
-  return {
-    initialValues: { transform: [{ scaleX: 1 }], opacity: 1 },
-    animations: {
-      transform: [{ scaleX: withTiming(0, { duration: 240 }) }],
-      opacity: withTiming(0.2, { duration: 240 }),
-    },
-  };
-};
-
-const letterIn =
-  (i: number): EntryExitAnimationFunction =>
-  () => {
-    "worklet";
-    return {
-      initialValues: { opacity: 0, transform: [{ translateX: -7 }] },
-      animations: {
-        opacity: withDelay(230 + i * 22, withTiming(1, { duration: 200 })),
-        transform: [
-          { translateX: withDelay(230 + i * 22, withTiming(0, { duration: 200, easing: OUT })) },
-        ],
-      },
-    };
-  };
-
-function NamePill({
-  entry,
-  fresh,
-  lifted,
-  onLongPress,
-}: {
-  entry: NameEntry;
-  fresh: boolean;
-  lifted: boolean;
-  onLongPress: (entry: NameEntry, node: View) => void;
-}) {
-  const ref = useRef<View>(null);
+function BreathCapsule({ entry }: { entry: BreathEntry }) {
   return (
-    <Animated.View
-      ref={ref}
-      entering={fresh ? unroll : undefined}
-      exiting={rollUp}
-      layout={LinearTransition.duration(280).easing(Easing.bezierFn(0.25, 0.8, 0.3, 1))}
-      style={{ transformOrigin: "left", opacity: lifted ? 0 : 1 }}
-    >
-      <Pressable
-        delayLongPress={380}
-        onLongPress={() => ref.current && onLongPress(entry, ref.current)}
-        style={{
-          flexDirection: "row",
-          paddingHorizontal: 12,
-          paddingVertical: 6,
-          borderRadius: 999,
-          borderWidth: 1,
-          borderColor: night.hotLine,
-          backgroundColor: night.hotWash,
-        }}
-      >
-        {fresh ? (
-          [...entry.text].map((ch, i) => (
-            <Animated.Text
-              key={i}
-              entering={letterIn(i)}
-              style={{ ...brico(16), color: night.hotText }}
-            >
-              {ch}
-            </Animated.Text>
-          ))
-        ) : (
-          <Text style={{ ...brico(16), color: night.hotText }}>{entry.text}</Text>
-        )}
-      </Pressable>
-    </Animated.View>
-  );
-}
-
-function BreathCapsule({ entry, fresh }: { entry: BreathEntry; fresh: boolean }) {
-  return (
-    <Animated.View
-      entering={fresh ? unroll : undefined}
+    <View
       style={{
         alignSelf: "flex-start",
-        transformOrigin: "left",
         flexDirection: "row",
         alignItems: "center",
         gap: 8,
@@ -176,64 +65,203 @@ function BreathCapsule({ entry, fresh }: { entry: BreathEntry; fresh: boolean })
     >
       <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: "#fff" }} />
       <Text style={{ ...brico(14, "bold"), color: "#fff" }}>{breathCaption(entry)}</Text>
+    </View>
+  );
+}
+
+function Yours({ text }: { text: string }) {
+  return (
+    <View
+      style={{
+        alignSelf: "flex-end",
+        maxWidth: "84%",
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+        borderRadius: 20,
+        backgroundColor: night.hotWash,
+      }}
+    >
+      <Text style={{ ...brico(17), lineHeight: 23, color: night.hotText }}>{text}</Text>
+    </View>
+  );
+}
+
+// Letters still settling: the newest ones are fainter, in three steps.
+const TAIL = 18;
+const SETTLE = ["rgba(242,238,230,0.72)", "rgba(242,238,230,0.46)", "rgba(242,238,230,0.2)"];
+const INK = night.ink;
+const voiceStyle = { ...garamond.regular(20), lineHeight: 28, color: INK };
+
+// Claude's words. A reply that is still arriving (or has only just arrived)
+// reveals at an even pace however the network delivers it, then lets its tail
+// settle; anything older renders whole.
+function Theirs({ text, reveal }: { text: string; reveal: boolean }) {
+  const pos = useRef(reveal ? 0 : Infinity);
+  const [, tick] = useState(0);
+  const target = useRef(text.length + TAIL);
+  target.current = text.length + TAIL;
+  const frame = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!reveal || frame.current != null) return;
+    const step = () => {
+      const t = target.current;
+      if (pos.current >= t) {
+        frame.current = null;
+        return;
+      }
+      pos.current = Math.min(t, pos.current + Math.max(1.2, (t - pos.current) * 0.12));
+      tick((n) => n + 1);
+      frame.current = requestAnimationFrame(step);
+    };
+    frame.current = requestAnimationFrame(step);
+  }, [text, reveal]);
+  useEffect(
+    () => () => {
+      if (frame.current != null) cancelAnimationFrame(frame.current);
+    },
+    [],
+  );
+
+  const v = pos.current;
+  const shown = Math.min(Math.floor(v), text.length);
+  const bright = Math.max(0, Math.min(shown, Math.floor(v) - TAIL));
+  const third = TAIL / 3;
+  const parts: { s: string; c: string }[] = [];
+  for (let i = 0; i < 3; i++) {
+    const a = Math.max(bright, Math.floor(v) - TAIL + Math.round(third * i));
+    const b = Math.min(shown, Math.floor(v) - TAIL + Math.round(third * (i + 1)));
+    if (b > a) parts.push({ s: text.slice(a, b), c: SETTLE[i] });
+  }
+  return (
+    <View style={{ alignSelf: "flex-start", maxWidth: "94%" }}>
+      <Text style={voiceStyle}>
+        {text.slice(0, bright)}
+        {parts.map((p, i) => (
+          <Text key={i} style={{ color: p.c }}>
+            {p.s}
+          </Text>
+        ))}
+      </Text>
+    </View>
+  );
+}
+
+// Sent, nothing back yet: one dot, breathing.
+function Listening() {
+  const o = useSharedValue(0.25);
+  useEffect(() => {
+    o.value = withRepeat(withTiming(1, { duration: 900, easing: Easing.inOut(Easing.ease) }), -1, true);
+  }, [o]);
+  const style = useAnimatedStyle(() => ({ opacity: o.value, transform: [{ scale: 0.8 + 0.2 * o.value }] }));
+  return (
+    <Animated.View
+      style={[{ width: 10, height: 10, borderRadius: 5, backgroundColor: night.hot, marginTop: 9, marginLeft: 2 }, style]}
+    />
+  );
+}
+
+function Note({ status, onRetry }: { status: ChatStatus; onRetry: () => void }) {
+  const words: Partial<Record<ChatStatus, string>> = {
+    failed: "didn't go through · tap to try again",
+    refused: "that one couldn't be answered · try saying it another way",
+    nokey: "paste your Anthropic API key below to begin",
+    badkey: "that key was turned away · paste a new one below",
+  };
+  const w = words[status];
+  if (!w) return null;
+  return (
+    <Animated.View entering={FadeIn.duration(260)}>
+      <Pressable disabled={status !== "failed"} onPress={onRetry} hitSlop={10}>
+        <Text style={{ ...label(12, 0.5), color: status === "failed" ? night.hotText : night.dim }}>{w}</Text>
+      </Pressable>
     </Animated.View>
   );
 }
 
-export type Frame = { x: number; y: number; width: number; height: number };
-
 export function ThreadList({
-  entries,
-  freshId,
-  liftedId,
-  onLongPressName,
+  breaths,
+  messages,
+  live,
+  status,
+  onRetry,
+  sinceMount,
 }: {
-  entries: ThreadEntry[];
-  freshId: string | null;
-  liftedId: string | null;
-  onLongPressName: (entry: NameEntry, node: View) => void;
+  breaths: BreathEntry[];
+  messages: ChatMessage[];
+  live: { id: string; text: string } | null;
+  status: ChatStatus;
+  onRetry: () => void;
+  sinceMount: number; // items newer than this arrived while the thread was open
 }) {
-  if (!entries.length) {
+  const items: Item[] = [
+    ...breaths.map((b) => ({ kind: "breath" as const, id: b.id, time: b.createdAt, entry: b })),
+    ...messages
+      .filter((m) => m.id !== live?.id)
+      .map((m) => ({ kind: "message" as const, id: m.id, time: m.createdAt, message: m })),
+  ].sort((a, b) => a.time - b.time);
+  if (live) items.push({ kind: "live", id: live.id, time: Date.now(), text: live.text });
+
+  if (!items.length) {
     return (
       <View style={{ paddingTop: 8 }}>
         <Text style={{ ...label(), marginBottom: 14 }}>TODAY</Text>
-        <Text style={{ ...brico(20), color: night.faint, lineHeight: 27, maxWidth: 280 }}>
-          Name what you see, or breathe. Both land here, in the order they happen.
+        <Text style={{ ...garamond.regular(22), color: night.faint, lineHeight: 30, maxWidth: 300 }}>
+          Here, now. Say what's happening, or breathe.
         </Text>
+        <View style={{ marginTop: 18 }}>
+          <Note status={status} onRetry={onRetry} />
+        </View>
       </View>
     );
   }
+
+  const rows: React.ReactNode[] = [];
+  let prev: Item | null = null;
+  for (const it of items) {
+    if (!prev || dayKey(prev.time) !== dayKey(it.time)) {
+      rows.push(
+        <Text key={`day-${dayKey(it.time)}`} style={{ ...label(), marginTop: prev ? 18 : 0, marginBottom: 14 }}>
+          {dayLabel(it.time)}
+        </Text>,
+      );
+    } else if (it.time - prev.time > GAP_MS) {
+      rows.push(
+        <Text key={`gap-${it.id}`} style={{ ...label(), marginTop: 10, marginBottom: 12 }}>
+          {hhmm(it.time)}
+        </Text>,
+      );
+    }
+    const fresh = it.time > sinceMount;
+    // A reply stays the same element from its first word to stored message.
+    const body =
+      it.kind === "breath" ? (
+        <BreathCapsule entry={it.entry} />
+      ) : it.kind === "live" ? (
+        it.text ? <Theirs text={it.text} reveal /> : <Listening />
+      ) : it.message.role === "user" ? (
+        <Yours text={it.message.text} />
+      ) : (
+        <Theirs text={it.message.text} reveal={fresh} />
+      );
+    rows.push(
+      <Animated.View
+        key={it.id}
+        entering={fresh && it.kind !== "live" && !(it.kind === "message" && it.message.role === "assistant")
+          ? FadeIn.duration(240).easing(Easing.bezierFn(0.25, 0.8, 0.3, 1))
+          : undefined}
+        style={{ marginBottom: 14 }}
+      >
+        {body}
+      </Animated.View>,
+    );
+    prev = it;
+  }
+
   return (
     <View>
-      {group(entries).map((day) => (
-        <View key={day.key} style={{ marginBottom: 10 }}>
-          <Text style={{ ...label(), marginBottom: 14 }}>{day.label}</Text>
-          {day.blocks.map((block) => (
-            <Animated.View
-              key={block.kind === "breath" ? block.entry.id : block.items[0].id}
-              layout={LinearTransition.duration(280).easing(Easing.bezierFn(0.25, 0.8, 0.3, 1))}
-              style={{ marginBottom: 16 }}
-            >
-              <Text style={{ ...label(), marginBottom: 6 }}>{hhmm(block.time)}</Text>
-              {block.kind === "breath" ? (
-                <BreathCapsule entry={block.entry} fresh={block.entry.id === freshId} />
-              ) : (
-                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5 }}>
-                  {block.items.map((n) => (
-                    <NamePill
-                      key={n.id}
-                      entry={n}
-                      fresh={n.id === freshId}
-                      lifted={n.id === liftedId}
-                      onLongPress={onLongPressName}
-                    />
-                  ))}
-                </View>
-              )}
-            </Animated.View>
-          ))}
-        </View>
-      ))}
+      {rows}
+      <Note status={status} onRetry={onRetry} />
     </View>
   );
 }

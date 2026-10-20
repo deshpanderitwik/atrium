@@ -19,7 +19,7 @@ import { DatabaseSync } from "node:sqlite";
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || "127.0.0.1";
 const DIR = process.env.ATRIUM_DATA_DIR || join(homedir(), "Library", "Application Support", "Atrium");
-const MAX_BODY = 1_000_000;
+const MAX_BODY = 5_000_000;
 
 mkdirSync(DIR, { recursive: true });
 const db = new DatabaseSync(join(DIR, "atrium.db"));
@@ -109,6 +109,39 @@ const planLoops = db.prepare(
 const toggleItem = db.prepare(
   "UPDATE plan_items SET done = 1 - done, doneAt = CASE WHEN done = 0 THEN ? ELSE NULL END, approx = 0 WHERE id = ?",
 );
+// The station's conversation with Claude, pushed from the phone. Kept apart
+// from thread_entries (the archive of named things and breaths). Rows never
+// change once written; content is the exact API content as JSON.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS chat_messages (
+    id TEXT PRIMARY KEY NOT NULL,
+    role TEXT NOT NULL,            -- 'user' | 'assistant'
+    text TEXT NOT NULL,            -- what the thread shows
+    content TEXT NOT NULL,         -- JSON content blocks, as sent or received
+    createdAt INTEGER NOT NULL,    -- ms since epoch, on the phone
+    updatedAt INTEGER NOT NULL,
+    receivedAt INTEGER NOT NULL
+  );
+`);
+const upsertChat = db.prepare(`
+  INSERT INTO chat_messages (id, role, text, content, createdAt, updatedAt, receivedAt)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(id) DO UPDATE SET
+    role = excluded.role, text = excluded.text, content = excluded.content,
+    createdAt = excluded.createdAt, updatedAt = excluded.updatedAt, receivedAt = excluded.receivedAt
+  WHERE excluded.updatedAt >= chat_messages.updatedAt
+`);
+
+function validateChat(m) {
+  if (!m || typeof m !== "object") return null;
+  const id = str(m.id, 64);
+  const role = m.role === "user" || m.role === "assistant" ? m.role : null;
+  const text = str(m.text, 200_000);
+  if (!id || !role || text == null || !Array.isArray(m.content)) return null;
+  if (!isInt(m.createdAt) || !isInt(m.updatedAt)) return null;
+  return [id, role, text, JSON.stringify(m.content), m.createdAt, m.updatedAt, Date.now()];
+}
+
 // A scratch week plan for the /week page: one-off, separate from plan_items so
 // it can be thrown away without touching the Today page.
 db.exec(`
@@ -165,6 +198,26 @@ function validate(e) {
   ];
 }
 
+// Reads a JSON body (up to MAX_BODY) and hands it to `then`.
+function readJson(req, res, then) {
+  let size = 0;
+  const chunks = [];
+  req.on("data", (c) => {
+    size += c.length;
+    if (size > MAX_BODY) req.destroy();
+    else chunks.push(c);
+  });
+  req.on("end", () => {
+    let body;
+    try {
+      body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    } catch {
+      return send(res, 400, { ok: false, error: "Body must be JSON" });
+    }
+    then(body);
+  });
+}
+
 function send(res, status, body) {
   res.writeHead(status, { "content-type": "application/json" });
   res.end(JSON.stringify(body));
@@ -203,6 +256,25 @@ const server = http.createServer((req, res) => {
     } catch {
       return send(res, 404, { ok: false, error: "not found" });
     }
+  }
+  if (req.method === "POST" && req.url === "/chat") {
+    return readJson(req, res, (body) => {
+      const list = body?.messages;
+      if (!Array.isArray(list)) return send(res, 400, { ok: false, error: "messages must be an array" });
+      const rows = list.map(validateChat);
+      const bad = rows.findIndex((r) => r === null);
+      if (bad !== -1) return send(res, 400, { ok: false, error: `message ${bad} is malformed` });
+      db.exec("BEGIN");
+      try {
+        for (const r of rows) upsertChat.run(...r);
+        db.exec("COMMIT");
+      } catch (err) {
+        db.exec("ROLLBACK");
+        return send(res, 500, { ok: false, error: String(err) });
+      }
+      console.log(`${new Date().toISOString()} stored ${rows.length} chat message${rows.length === 1 ? "" : "s"}`);
+      return send(res, 200, { ok: true, accepted: rows.length });
+    });
   }
   if (req.method === "POST" && req.url === "/entries") {
     let size = 0;
