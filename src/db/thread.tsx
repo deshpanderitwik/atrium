@@ -75,9 +75,20 @@ async function getDb() {
       if (!have.has("dirty")) {
         await db.execAsync("ALTER TABLE thread_entries ADD COLUMN dirty INTEGER NOT NULL DEFAULT 1");
       }
-      // The station starts fresh: the named things leave the phone. This is a
-      // plain local delete, never synced, so the Mac keeps its archive.
-      await db.execAsync("DELETE FROM thread_entries WHERE kind = 'name'");
+      // The station generation starts clean, once: the named things and the
+      // old breath sessions leave the phone. A plain local delete, never
+      // synced, so the Mac keeps its archive of both.
+      await db.execAsync("CREATE TABLE IF NOT EXISTS app_kv (key TEXT PRIMARY KEY NOT NULL, value TEXT)");
+      const gen = await db.getFirstAsync<{ value: string }>(
+        "SELECT value FROM app_kv WHERE key = 'threadGeneration'",
+      );
+      if (gen?.value !== "station") {
+        await db.execAsync(`
+          DELETE FROM thread_entries;
+          INSERT INTO app_kv (key, value) VALUES ('threadGeneration', 'station')
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+        `);
+      }
       return db;
     })();
   }
