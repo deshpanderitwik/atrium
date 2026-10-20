@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef } from "react";
 import { Audio } from "expo-av";
 import type { BreathPattern } from "@/lib/breath";
 
-// Each pattern is one baked track: four 70s rounds (60s of breath with a pluck
-// on every second — F while breathing in, C while breathing out — then 10s of
-// silence), looped. Looping a fixed buffer is sample-accurate, so the rhythm is
-// perfectly metronomic — no per-beat JS timers to jitter.
+// Each pattern is one baked 70 s round, looped: 60 s of breath with a soft
+// marimba note on every second — climbing the F minor chord while breathing
+// in, stepping back down to C while breathing out, the melody of the macOS
+// Breathe app — then 10 s of rest. Baked by scripts/bake-breath-audio.py.
+// Looping a fixed buffer is sample-accurate, so the rhythm is perfectly
+// metronomic — no per-beat JS timers to jitter.
 const SOURCES: Record<BreathPattern, number> = {
   "4-6": require("../../assets/audio/breath-loop.wav"),
   "5-5": require("../../assets/audio/breath-loop-55.wav"),

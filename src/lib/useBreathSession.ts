@@ -110,13 +110,13 @@ export function useBreathSession(onFinish: (r: BreathResult) => void) {
           cancelAnimation(scale);
           scale.value = withTiming(1, { duration: 500 });
         }
-        // The track loops straight into the next round's first pluck at 70s,
+        // The track loops straight into the next round's first note at 70s,
         // the same instant the session ends, so stopping then always lets a
-        // pluck or two slip out. In the last round, stop the audio a second
-        // into the rest instead: the last pluck has died away and the track
-        // is silent until 70s, so it ends in silence.
+        // note or two slip out. In the last round, stop the audio a few
+        // seconds into the rest instead: the last note's ring has died away
+        // (by ~61s) and the track is silent until 70s, so it ends in silence.
         if (
-          pos === BREATH_SECONDS + 1 &&
+          pos === BREATH_SECONDS + 3 &&
           config.rounds != null &&
           Math.floor(b / PERIOD_SECONDS) === config.rounds - 1
         ) {
