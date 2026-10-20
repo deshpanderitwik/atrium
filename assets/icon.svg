@@ -1,0 +1,8 @@
+<!-- Atrium · the Oculus. Light through the opening above, landing as a pool
+     on the floor. Full-bleed square; iOS rounds the corners itself.
+     Rendered to assets/icon.png by scripts/render-icon.py. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#0e0d0c"/>
+  <circle cx="512" cy="263" r="117" fill="#ff6a2b"/>
+  <ellipse cx="512" cy="805" rx="249" ry="66" fill="#ff6a2b"/>
+</svg>

@@ -12,6 +12,9 @@ const config: ExpoConfig = {
   version: "0.3.0",
   orientation: "portrait",
   userInterfaceStyle: "dark",
+  // The Oculus: light through the opening above, a pool of it on the floor.
+  // Drawn in assets/icon.svg, rendered by scripts/render-icon.py.
+  icon: "./assets/icon.png",
   newArchEnabled: true,
   splash: {
     resizeMode: "contain",
