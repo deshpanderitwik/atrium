@@ -4,6 +4,7 @@
 // src/lib/claude.ts). Rows are marked dirty and pushed to the Mac like the
 // thread entries (src/lib/sync.ts).
 
+import * as SecureStore from "expo-secure-store";
 import * as SQLite from "expo-sqlite";
 import React, {
   createContext,
@@ -35,6 +36,24 @@ type Row = { id: string; role: string; text: string; content: string; createdAt:
 
 const DB_NAME = "atrium.db";
 const KEY_SETTING = "anthropicKey";
+
+// The API key lives in the iPhone Keychain. Earlier versions kept it in the
+// app_kv table; the first read moves it across and clears the old copy.
+async function readKey(): Promise<string | null> {
+  const key = await SecureStore.getItemAsync(KEY_SETTING).catch(() => null);
+  if (key) return key;
+  const legacy = await getSetting(KEY_SETTING);
+  if (!legacy) return null;
+  await saveKey(legacy);
+  await setSetting(KEY_SETTING, "");
+  return legacy;
+}
+
+async function saveKey(key: string) {
+  await SecureStore.setItemAsync(KEY_SETTING, key, {
+    keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+  });
+}
 // A pasted API key is saved, never posted to the thread.
 const looksLikeKey = (s: string) => /^sk-ant-[\w-]{20,}$/.test(s.trim());
 
@@ -130,7 +149,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refresh().catch(() => {});
-    getSetting(KEY_SETTING).then((k) => {
+    readKey().then((k) => {
       setHasKey(!!k);
       if (!k) setStatus("nokey");
     });
@@ -143,7 +162,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       again.current = true;
       return;
     }
-    const key = await getSetting(KEY_SETTING);
+    const key = await readKey();
     if (!key) {
       setStatus("nokey");
       return;
@@ -205,7 +224,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     async (raw: string): Promise<"sent" | "key"> => {
       const text = raw.trim();
       if (looksLikeKey(text)) {
-        await setSetting(KEY_SETTING, text);
+        await saveKey(text);
         setHasKey(true);
         setStatus("idle");
         haptics.success();

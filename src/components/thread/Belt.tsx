@@ -1,12 +1,12 @@
 // The belt: one surface at the bottom of the thread that becomes whatever the
 // moment needs. At rest it is a composer — breathe · text box · send — and the
-// text box grows as you write. Tapping
-// breathe opens the breath setup in place; starting rises it over the thread as
-// the session dock; ending sinks it back.
+// text box grows as you write. Tapping breathe opens the breath setup in place;
+// starting rises it over the thread as the session dock; ending sinks it back.
+// It rides the keyboard through keyboard-controller's sticky view, on the UI
+// thread and frame for frame, interactive dismissal included.
 
 import React, { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Keyboard,
   LayoutChangeEvent,
   Pressable,
   Text,
@@ -28,6 +28,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { KeyboardStickyView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { brico, label, night } from "@/theme";
@@ -40,8 +41,11 @@ const SPRING = { damping: 26, stiffness: 230, mass: 1 };
 const BTN = 54;
 const PAD = 6;
 const COMPOSE_H = BTN + PAD * 2;
-// Close to the curve iOS animates its keyboard with.
-const KEYBOARD_EASE = Easing.bezier(0.38, 0.7, 0.125, 1);
+// Between the belt and the keyboard when it's up.
+export const KEYBOARD_GAP = 8;
+export const COMPOSE_HEIGHT = COMPOSE_H;
+// The belt's distance from the bottom of the screen with the keyboard down.
+export const beltRest = (bottomInset: number) => Math.max(bottomInset, 12) + 8;
 
 // Each mode's content is a layer pinned to the belt's bottom edge. Layers cross:
 // the outgoing one sinks and fades while the incoming one rises in, so the belt
@@ -105,37 +109,16 @@ type Props = {
   restLeft: number;
   scale: SharedValue<number>;
   onEnd: () => void;
+  // Shown just above the belt, riding the keyboard with it.
+  above?: React.ReactNode;
+  // The composer's height as it grows, for the thread's bottom inset.
+  onComposeHeight?: (h: number) => void;
 };
 
 export const Belt = forwardRef<TextInput, Props>(function Belt(p, inputRef) {
   const insets = useSafeAreaInsets();
   const { height: screenH } = useWindowDimensions();
-  const rest = Math.max(insets.bottom, 12) + 8;
-
-  // Ride on top of the keyboard, moving with it from wherever the belt is. Driven
-  // by the keyboard's own will-show/will-hide events (its real height, duration
-  // and curve): a frame-by-frame keyboard tracker briefly reports a bogus height
-  // as the keyboard starts to hide, which flung the belt to the top of the screen.
-  const keyboard = useSharedValue(0);
-  useEffect(() => {
-    const show = Keyboard.addListener("keyboardWillShow", (e) => {
-      keyboard.value = withTiming(e.endCoordinates.height, {
-        duration: e.duration || 250,
-        easing: KEYBOARD_EASE,
-      });
-    });
-    const hide = Keyboard.addListener("keyboardWillHide", (e) => {
-      keyboard.value = withTiming(0, { duration: e.duration || 250, easing: KEYBOARD_EASE });
-    });
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, [keyboard]);
-
-  const lift = useAnimatedStyle(() => ({
-    bottom: Math.max(keyboard.value + 8, rest),
-  }));
+  const rest = beltRest(insets.bottom);
 
   const dockHeight = screenH - insets.top - 12 - rest;
 
@@ -158,13 +141,18 @@ export const Belt = forwardRef<TextInput, Props>(function Belt(p, inputRef) {
 
   const measure = (m: "compose" | "setup") => (e: LayoutChangeEvent) => {
     const h = Math.round(e.nativeEvent.layout.height);
+    if (m === "compose") p.onComposeHeight?.(h);
     setMeasured((prev) => (prev[m] === h ? prev : { ...prev, [m]: h }));
   };
 
-  // The outer view only tracks the keyboard; the shell grows upward from the
+  // The sticky view rides the keyboard; the shell grows upward from the
   // bottom edge while the layers cross inside it.
   return (
-    <Animated.View style={[{ position: "absolute", left: 10, right: 10 }, lift]}>
+    <KeyboardStickyView
+      offset={{ closed: 0, opened: rest - KEYBOARD_GAP }}
+      style={{ position: "absolute", left: 10, right: 10, bottom: rest }}
+    >
+      {p.mode === "compose" && p.above}
       <Animated.View
         style={[{ borderRadius: p.mode === "compose" ? COMPOSE_H / 2 : 34, overflow: "hidden" }, shell]}
       >
@@ -186,7 +174,7 @@ export const Belt = forwardRef<TextInput, Props>(function Belt(p, inputRef) {
           {p.mode === "dock" && <Dock {...p} />}
         </Animated.View>
       </Animated.View>
-    </Animated.View>
+    </KeyboardStickyView>
   );
 });
 
@@ -239,10 +227,24 @@ const Composer = forwardRef<TextInput, Props>(function Composer(p, ref) {
         </Pressable>
       </Animated.View>
       <Animated.View style={[{ flex: 1 }, shakeStyle]}>
+        {/* The well keeps 4 pt above and below the text at all times: the
+            input's own padding scrolls away with long text, this doesn't. */}
+        <View
+          style={{
+            minHeight: BTN,
+            maxHeight: 148,
+            borderRadius: BTN / 2,
+            backgroundColor: night.well,
+            paddingVertical: 4,
+            overflow: "hidden",
+          }}
+        >
         <TextInput
           ref={ref}
           value={p.text}
-          onChangeText={p.onChangeText}
+          // Only whitespace (a stray return) counts as empty, so the
+          // placeholder and breathe come back.
+          onChangeText={(t) => p.onChangeText(t.trim() ? t : "")}
           onFocus={() => p.onFocusChange(true)}
           onBlur={() => p.onFocusChange(false)}
           onSubmitEditing={(e) => p.onSend(e.nativeEvent.text)}
@@ -256,18 +258,17 @@ const Composer = forwardRef<TextInput, Props>(function Composer(p, ref) {
           autoCapitalize="sentences"
           selectionColor={night.hot}
           style={{
-            minHeight: BTN,
-            maxHeight: 148,
-            borderRadius: BTN / 2,
-            backgroundColor: night.well,
+            minHeight: BTN - 8,
+            maxHeight: 148 - 8,
             color: night.ink,
             paddingHorizontal: 18,
-            paddingTop: 16,
-            paddingBottom: 15,
+            paddingTop: 12,
+            paddingBottom: 11,
             ...brico(17),
             lineHeight: 22,
           }}
         />
+        </View>
       </Animated.View>
       <Pressable
         onPress={() => p.onSend()}

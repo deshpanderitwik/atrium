@@ -1,5 +1,5 @@
 // The thread: the conversation and the breath sessions, in the order they
-// happened, under day headings. Your words sit on the right in the hot wash;
+// happened, under day headings, as rows for the virtualised list. Your words sit on the right in the hot wash;
 // Claude's sit on the left in Garamond, and arrive as they are written — a
 // steady reveal whose last few letters are still settling into ink.
 
@@ -161,14 +161,15 @@ function Listening() {
   );
 }
 
+const NOTES: Partial<Record<ChatStatus, string>> = {
+  failed: "didn't go through · tap to try again",
+  refused: "that one couldn't be answered · try saying it another way",
+  nokey: "paste your Anthropic API key below to begin",
+  badkey: "that key was turned away · paste a new one below",
+};
+
 function Note({ status, onRetry }: { status: ChatStatus; onRetry: () => void }) {
-  const words: Partial<Record<ChatStatus, string>> = {
-    failed: "didn't go through · tap to try again",
-    refused: "that one couldn't be answered · try saying it another way",
-    nokey: "paste your Anthropic API key below to begin",
-    badkey: "that key was turned away · paste a new one below",
-  };
-  const w = words[status];
+  const w = NOTES[status];
   if (!w) return null;
   return (
     <Animated.View entering={FadeIn.duration(260)}>
@@ -179,21 +180,30 @@ function Note({ status, onRetry }: { status: ChatStatus; onRetry: () => void }) 
   );
 }
 
-export function ThreadList({
+// One row of the virtualised thread. Day headings and quiet-stretch times are
+// rows too, so they scroll with everything else.
+export type Row =
+  | { key: string; kind: "day"; label: string; first: boolean }
+  | { key: string; kind: "time"; label: string }
+  | { key: string; kind: "breath"; entry: BreathEntry; fresh: boolean }
+  | { key: string; kind: "yours"; text: string; fresh: boolean }
+  | { key: string; kind: "theirs"; text: string; reveal: boolean }
+  | { key: string; kind: "listening" }
+  | { key: string; kind: "note"; status: ChatStatus };
+
+export function threadRows({
   breaths,
   messages,
   live,
   status,
-  onRetry,
   sinceMount,
 }: {
   breaths: BreathEntry[];
   messages: ChatMessage[];
   live: { id: string; text: string } | null;
   status: ChatStatus;
-  onRetry: () => void;
   sinceMount: number; // items newer than this arrived while the thread was open
-}) {
+}): Row[] {
   const items: Item[] = [
     ...breaths.map((b) => ({ kind: "breath" as const, id: b.id, time: b.createdAt, entry: b })),
     ...messages
@@ -202,66 +212,67 @@ export function ThreadList({
   ].sort((a, b) => a.time - b.time);
   if (live) items.push({ kind: "live", id: live.id, time: Date.now(), text: live.text });
 
-  if (!items.length) {
-    return (
-      <View style={{ paddingTop: 8 }}>
-        <Text style={{ ...label(), marginBottom: 14 }}>TODAY</Text>
-        <Text style={{ ...garamond.regular(22), color: night.faint, lineHeight: 30, maxWidth: 300 }}>
-          Here, now. Say what's happening, or breathe.
-        </Text>
-        <View style={{ marginTop: 18 }}>
-          <Note status={status} onRetry={onRetry} />
-        </View>
-      </View>
-    );
-  }
-
-  const rows: React.ReactNode[] = [];
+  const rows: Row[] = [];
   let prev: Item | null = null;
   for (const it of items) {
     if (!prev || dayKey(prev.time) !== dayKey(it.time)) {
-      rows.push(
-        <Text key={`day-${dayKey(it.time)}`} style={{ ...label(), marginTop: prev ? 18 : 0, marginBottom: 14 }}>
-          {dayLabel(it.time)}
-        </Text>,
-      );
+      rows.push({ key: `day-${dayKey(it.time)}`, kind: "day", label: dayLabel(it.time), first: !prev });
     } else if (it.time - prev.time > GAP_MS) {
-      rows.push(
-        <Text key={`gap-${it.id}`} style={{ ...label(), marginTop: 10, marginBottom: 12 }}>
-          {hhmm(it.time)}
-        </Text>,
-      );
+      rows.push({ key: `gap-${it.id}`, kind: "time", label: hhmm(it.time) });
     }
     const fresh = it.time > sinceMount;
-    // A reply stays the same element from its first word to stored message.
-    const body =
-      it.kind === "breath" ? (
-        <BreathCapsule entry={it.entry} />
-      ) : it.kind === "live" ? (
-        it.text ? <Theirs text={it.text} reveal /> : <Listening />
-      ) : it.message.role === "user" ? (
-        <Yours text={it.message.text} />
-      ) : (
-        <Theirs text={it.message.text} reveal={fresh} />
-      );
-    rows.push(
-      <Animated.View
-        key={it.id}
-        entering={fresh && it.kind !== "live" && !(it.kind === "message" && it.message.role === "assistant")
-          ? FadeIn.duration(240).easing(Easing.bezierFn(0.25, 0.8, 0.3, 1))
-          : undefined}
-        style={{ marginBottom: 14 }}
-      >
-        {body}
-      </Animated.View>,
-    );
+    // A reply keeps its key from first word to stored message, so its row —
+    // and its reveal — carry straight on.
+    if (it.kind === "breath") rows.push({ key: it.id, kind: "breath", entry: it.entry, fresh });
+    else if (it.kind === "live") {
+      rows.push(it.text ? { key: it.id, kind: "theirs", text: it.text, reveal: true } : { key: it.id, kind: "listening" });
+    } else if (it.message.role === "user") rows.push({ key: it.id, kind: "yours", text: it.message.text, fresh });
+    else rows.push({ key: it.id, kind: "theirs", text: it.message.text, reveal: fresh });
     prev = it;
   }
+  if (rows.length && NOTES[status]) rows.push({ key: "note", kind: "note", status });
+  return rows;
+}
 
+export function ThreadRow({ row, onRetry }: { row: Row; onRetry: () => void }) {
+  switch (row.kind) {
+    case "day":
+      return <Text style={{ ...label(), marginTop: row.first ? 0 : 18, marginBottom: 14 }}>{row.label}</Text>;
+    case "time":
+      return <Text style={{ ...label(), marginTop: 10, marginBottom: 12 }}>{row.label}</Text>;
+    case "note":
+      return <Note status={row.status} onRetry={onRetry} />;
+  }
+  const body =
+    row.kind === "breath" ? (
+      <BreathCapsule entry={row.entry} />
+    ) : row.kind === "yours" ? (
+      <Yours text={row.text} />
+    ) : row.kind === "listening" ? (
+      <Listening />
+    ) : (
+      <Theirs text={row.text} reveal={row.reveal} />
+    );
+  // Your words fade in where they land; a slide would fight the scroll.
+  const fades = (row.kind === "yours" || row.kind === "breath") && row.fresh;
   return (
-    <View>
-      {rows}
-      <Note status={status} onRetry={onRetry} />
+    <Animated.View entering={fades ? FadeIn.duration(200) : undefined} style={{ marginBottom: 14 }}>
+      {body}
+    </Animated.View>
+  );
+}
+
+// Shown when there's nothing in the thread yet.
+export function EmptyThread({ status, onRetry }: { status: ChatStatus; onRetry: () => void }) {
+  return (
+    <View style={{ paddingTop: 8 }}>
+      <Text style={{ ...label(), marginBottom: 14 }}>TODAY</Text>
+      <Text style={{ ...garamond.regular(22), color: night.faint, lineHeight: 30, maxWidth: 300 }}>
+        Here, now. Say what's happening, or breathe.
+      </Text>
+      <View style={{ marginTop: 18 }}>
+        <Note status={status} onRetry={onRetry} />
+      </View>
     </View>
   );
 }

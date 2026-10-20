@@ -1,15 +1,23 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, Keyboard, Pressable, ScrollView, TextInput, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState, Keyboard, Pressable, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { night } from "@/theme";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, { FadeIn, FadeOut, useSharedValue } from "react-native-reanimated";
+import { KeyboardAwareLegendList } from "@legendapp/list/keyboard";
+import { brico, night } from "@/theme";
 import { haptics } from "@/lib/haptics";
 import { getSetting, setSetting } from "@/lib/settings";
 import { BreathConfig, BreathPattern, cycleSeconds } from "@/lib/breath";
 import { BreathResult, useBreathSession } from "@/lib/useBreathSession";
 import { useThread } from "@/db/thread";
 import { useChat } from "@/db/chat";
-import { ThreadList } from "@/components/thread/ThreadList";
-import { Belt, BeltMode } from "@/components/thread/Belt";
+import { EmptyThread, Row, ThreadRow, threadRows } from "@/components/thread/ThreadList";
+import { Belt, BeltMode, COMPOSE_HEIGHT, KEYBOARD_GAP, beltRest } from "@/components/thread/Belt";
+
+// Between the newest message and the top of the belt.
+const GAP = 12;
+
+type ListHandle = { scrollToEnd(o?: { animated?: boolean }): Promise<void> };
 
 const PATTERN_KEY = "breathPattern";
 const ROUNDS_KEY = "breathRounds"; // "0" = until stopped
@@ -18,12 +26,17 @@ const SILENT_KEY = "breathSilent";
 // The station — the single home screen. One long conversation with Claude and
 // the breath sessions between, with the belt at the bottom: breathe · text box
 // · send. It opens ready to write, since you come here mid-slip.
+//
+// How it scrolls is specified in process/station-chat-spec.md (worked out in
+// ../chat-lab): the thread is a KeyboardAwareLegendList that rests on the belt,
+// stays pinned while things grow, holds still when you've scrolled up, and
+// lifts with the keyboard only when you're at the end.
 export default function Thread() {
   const insets = useSafeAreaInsets();
   const { entries, addBreath } = useThread();
   const chat = useChat();
   const inputRef = useRef<TextInput>(null);
-  const scrollRef = useRef<ScrollView>(null);
+  const listRef = useRef<ListHandle>(null);
   const [sinceMount] = useState(() => Date.now());
 
   const [mode, setMode] = useState<BeltMode>("compose");
@@ -115,6 +128,8 @@ export default function Thread() {
     clearText();
     haptics.light();
     await chat.send(v);
+    // R6: sending always pins.
+    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
   };
 
   // Tapping the thread puts away whatever is open.
@@ -138,37 +153,68 @@ export default function Thread() {
     session.start(config);
   };
 
+  // R2: the thread's end inset is the composer plus its resting distance
+  // plus a gap, tracked as the composer grows.
+  const rest = beltRest(insets.bottom);
+  const endInset = useSharedValue(COMPOSE_HEIGHT + rest + GAP);
+
+  // Pinned = the end of the thread is in view. Scrolled up, a "latest" pill
+  // appears, turning hot when something arrives below.
+  const [pinned, setPinned] = useState(true);
+  const [fresh, setFresh] = useState(false);
+  const onEndVisible = useCallback((visible: boolean) => {
+    setPinned(visible);
+    if (visible) setFresh(false);
+  }, []);
+  const rows = useMemo(
+    () =>
+      threadRows({
+        breaths: entries,
+        messages: chat.messages,
+        live: chat.live,
+        status: chat.status,
+        sinceMount,
+      }),
+    [entries, chat.messages, chat.live, chat.status, sinceMount],
+  );
+  const lastKey = rows[rows.length - 1]?.key;
+  const seenKey = useRef(lastKey);
+  useEffect(() => {
+    if (lastKey !== seenKey.current && !pinned) setFresh(true);
+    seenKey.current = lastKey;
+  }, [lastKey, pinned]);
+
+  // R10: a tap on the thread puts away whatever is open; it never scrolls.
+  const tap = Gesture.Tap().maxDuration(250).runOnJS(true).onEnd(dismiss);
+
   return (
     <View style={{ flex: 1, backgroundColor: night.bg }}>
-      <ScrollView
-        ref={scrollRef}
-        style={{ opacity: mode === "dock" ? 0 : 1 }}
-        keyboardDismissMode="interactive"
-        keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
-        onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
-        contentContainerStyle={{ flexGrow: 1 }}
-      >
-        <Pressable
-          onPress={dismiss}
-          style={{
-            flexGrow: 1,
-            paddingTop: insets.top + 16,
-            paddingHorizontal: 18,
-            paddingBottom: insets.bottom + 120,
-          }}
-        >
-          <ThreadList
-            breaths={entries}
-            messages={chat.messages}
-            live={chat.live}
-            status={chat.status}
-            onRetry={chat.retry}
-            sinceMount={sinceMount}
+      <GestureDetector gesture={tap}>
+        <View style={{ flex: 1, opacity: mode === "dock" ? 0 : 1 }}>
+          <KeyboardAwareLegendList
+            ref={listRef as never}
+            data={rows}
+            renderItem={({ item }: { item: Row }) => <ThreadRow row={item} onRetry={chat.retry} />}
+            keyExtractor={(r: Row) => r.key}
+            estimatedItemSize={64}
+            recycleItems={false}
+            alignItemsAtEnd
+            initialScrollAtEnd
+            maintainScrollAtEnd
+            maintainScrollAtEndThreshold={0.05}
+            maintainVisibleContentPosition
+            keyboardLiftBehavior="whenAtEnd"
+            keyboardOffset={rest - KEYBOARD_GAP}
+            contentInsetEndAdjustment={endInset}
+            onEndVisible={onEndVisible}
+            keyboardDismissMode="interactive"
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={<EmptyThread status={chat.status} onRetry={chat.retry} />}
+            contentContainerStyle={{ paddingTop: insets.top + 16, paddingHorizontal: 18 }}
           />
-        </Pressable>
-      </ScrollView>
-
+        </View>
+      </GestureDetector>
       {/* Keeps the scrolled thread from running under the clock: solid behind the
           status bar, then a short fade. */}
       <View
@@ -206,6 +252,31 @@ export default function Thread() {
         restLeft={session.restLeft}
         scale={session.scale}
         onEnd={session.stop}
+        onComposeHeight={(h) => {
+          endInset.value = h + rest + GAP;
+        }}
+        above={
+          !pinned && (
+            <Animated.View
+              entering={FadeIn.duration(160)}
+              exiting={FadeOut.duration(160)}
+              style={{ alignItems: "center", marginBottom: 10 }}
+            >
+              <Pressable
+                onPress={() => listRef.current?.scrollToEnd({ animated: true })}
+                hitSlop={8}
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 7,
+                  borderRadius: 999,
+                  backgroundColor: fresh ? night.hot : night.panel,
+                }}
+              >
+                <Text style={{ ...brico(14), color: fresh ? "#fff" : night.dim }}>latest</Text>
+              </Pressable>
+            </Animated.View>
+          )
+        }
       />
 
     </View>
