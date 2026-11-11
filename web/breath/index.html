@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e0d0c">
+<title>Atrium Breath</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<!--
+  Atrium's breath timer, for the browser: the same patterns, rounds and baked
+  marimba track as the phone's belt (src/lib/useBreathSession.ts,
+  src/components/thread/Belt.tsx). The track is looped sample-accurately by Web
+  Audio, and everything on screen is read off the audio clock, so the orb, the
+  words and the notes can't drift apart — even if the tab sits in the
+  background for a while.
+-->
+<style>
+  @font-face { font-family: "Bricolage"; src: url("fonts/bricolage-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+  @font-face { font-family: "Bricolage"; src: url("fonts/bricolage-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+  @font-face { font-family: "Bricolage"; src: url("fonts/bricolage-800.woff2") format("woff2"); font-weight: 800; font-display: swap; }
+
+  :root {
+    --bg: #0e0d0c;
+    --panel: #1a1714;
+    --dock: #151210;
+    --well: #0e0d0c;
+    --ghost: #2a2522;
+    --ink: #f2eee6;
+    --soft: #c9c0b4;
+    --dim: #8c847a;
+    --faint: #6b645c;
+    --hot: #ff6a2b;
+    --rest: #5a3a2a;
+    --spring: cubic-bezier(0.25, 0.8, 0.3, 1);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Bricolage", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    overflow: hidden;
+  }
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; padding: 0; }
+  button:focus-visible { outline: 2px solid var(--hot); outline-offset: 3px; }
+  .label {
+    font-family: Menlo, ui-monospace, "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--faint);
+    text-transform: uppercase;
+  }
+
+  .stage { width: min(420px, 100%); display: flex; flex-direction: column; align-items: center; }
+
+  /* ---- setup ---- */
+  #setup { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 36px; }
+  .idle-orb {
+    width: 120px; height: 120px; border-radius: 50%; background: var(--hot);
+    animation: idle 10s ease-in-out infinite;
+  }
+  @keyframes idle { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.12); } }
+  .panel {
+    width: 100%;
+    background: var(--panel);
+    border-radius: 34px;
+    padding: 6px;
+  }
+  .panel-body { padding: 4px 16px 0; }
+  .panel .label { margin: 14px 0 6px; }
+  .seg { display: flex; gap: 2px; padding: 3px; background: var(--well); border-radius: 999px; }
+  .seg button {
+    flex: 1; height: 36px; border-radius: 999px;
+    font-weight: 700; font-size: 15px; color: var(--dim);
+    transition: background 180ms var(--spring), color 180ms var(--spring);
+  }
+  .seg button[aria-checked="true"] { background: var(--ink); color: var(--bg); }
+  .seg button:not([aria-checked="true"]):hover { color: var(--soft); }
+  .toggle-row {
+    width: 100%; display: flex; justify-content: space-between; align-items: center;
+    margin: 16px 0 10px; padding: 0 2px; font-size: 15px; color: var(--soft);
+  }
+  .switch {
+    width: 42px; height: 24px; border-radius: 12px; padding: 3px; background: #2c2722;
+    display: flex; transition: background 180ms;
+  }
+  .switch::after {
+    content: ""; width: 18px; height: 18px; border-radius: 50%; background: var(--dim);
+    transition: transform 220ms var(--spring), background 180ms;
+  }
+  .toggle-row[aria-checked="true"] .switch { background: var(--hot); }
+  .toggle-row[aria-checked="true"] .switch::after { transform: translateX(18px); background: #fff; }
+  .start {
+    width: 100%; height: 54px; border-radius: 27px; margin-top: 6px;
+    background: var(--hot); color: #fff; font-weight: 700; font-size: 17px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform 120ms;
+  }
+  .start:active { transform: scale(0.98); }
+  .start:disabled { opacity: 0.6; cursor: progress; }
+  .dot { width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+  .last {
+    min-height: 28px; display: flex; align-items: center; gap: 8px;
+    padding: 6px 13px 6px 6px; border-radius: 999px; background: var(--hot);
+    font-weight: 700; font-size: 14px; color: #fff;
+    animation: fade 400ms ease-out;
+  }
+  .last .dot { width: 16px; height: 16px; }
+  .hint { text-align: center; line-height: 1.5; }
+  .hint kbd { font: inherit; color: var(--dim); }
+
+  /* ---- session ---- */
+  #session {
+    width: 100%;
+    height: min(640px, calc(100vh - 32px));
+    height: min(640px, calc(100dvh - 32px));
+    background: var(--dock);
+    border-radius: 34px;
+    padding: 18px 6px 6px;
+    display: flex; flex-direction: column;
+    animation: rise 420ms var(--spring);
+  }
+  .top { display: flex; justify-content: space-between; padding: 0 12px; }
+  .center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 56px; }
+  .orb {
+    width: 120px; height: 120px; border-radius: 50%; background: var(--hot);
+    transition: background-color 600ms ease;
+    will-change: transform;
+  }
+  .orb.resting { background: var(--rest); }
+  .phase { font-weight: 800; font-size: 34px; letter-spacing: -0.6px; line-height: 1; text-align: center; }
+  .clock { margin-top: 10px; text-align: center; }
+  .end {
+    height: 54px; border-radius: 27px; background: var(--ghost);
+    font-weight: 700; font-size: 17px; color: var(--soft);
+  }
+  .end:hover { color: var(--ink); }
+
+  [hidden] { display: none !important; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) {
+    .idle-orb { animation: none; }
+    #session, .last { animation: none; }
+  }
+  @media (max-height: 560px) {
+    #setup { gap: 20px; }
+    .idle-orb { width: 72px; height: 72px; }
+  }
+</style>
+</head>
+<body>
+<main class="stage">
+  <section id="setup" aria-label="Breath setup">
+    <div class="idle-orb" aria-hidden="true"></div>
+    <div class="panel">
+      <div class="panel-body">
+        <div class="label" id="pattern-label">Pattern</div>
+        <div class="seg" role="radiogroup" aria-labelledby="pattern-label" data-key="pattern">
+          <button type="button" role="radio" data-value="4-6">4 in · 6 out</button>
+          <button type="button" role="radio" data-value="5-5">5 in · 5 out</button>
+        </div>
+        <div class="label" id="rounds-label">Rounds · 60s breath + 10s rest</div>
+        <div class="seg" role="radiogroup" aria-labelledby="rounds-label" data-key="rounds">
+          <button type="button" role="radio" data-value="1">1</button>
+          <button type="button" role="radio" data-value="3">3</button>
+          <button type="button" role="radio" data-value="5">5</button>
+          <button type="button" role="radio" data-value="inf" aria-label="Until stopped">∞</button>
+        </div>
+        <button type="button" class="toggle-row" id="silent" role="switch">
+          <span>Silent · no sound</span><span class="switch" aria-hidden="true"></span>
+        </button>
+      </div>
+      <button type="button" class="start" id="start"><span class="dot"></span>start</button>
+    </div>
+    <div class="last" id="last" hidden><span class="dot"></span><span id="last-text"></span></div>
+    <div class="label hint"><kbd>space</kbd> to start · <kbd>esc</kbd> to end</div>
+  </section>
+
+  <section id="session" aria-label="Breath session" hidden>
+    <div class="top">
+      <span class="label" id="s-pattern"></span>
+      <span class="label" id="s-round"></span>
+    </div>
+    <div class="center">
+      <div class="orb" id="orb"></div>
+      <div>
+        <div class="phase" id="phase" aria-live="polite">in</div>
+        <div class="label clock" id="clock">0:00</div>
+      </div>
+    </div>
+    <button type="button" class="end" id="end">end session</button>
+  </section>
+</main>
+
+<script>
+(() => {
+  // ---- the shape of a session (src/lib/breath.ts) ----
+  const PATTERNS = { "4-6": { inhale: 4, exhale: 6 }, "5-5": { inhale: 5, exhale: 5 } };
+  const BREATH = 60;  // seconds of breathing per round
+  const PERIOD = 70;  // …then 10 s of rest
+  const AUDIO = { "4-6": "audio/breath-4-6.flac", "5-5": "audio/breath-5-5.flac" };
+  const LEAD = 0.12;  // seconds between the tap and the first note
+
+  const $ = (id) => document.getElementById(id);
+  const clock = (s) => { s = Math.max(0, Math.floor(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+  const label = (p) => p.replace("-", "–");
+
+  // ---- settings, remembered per browser ----
+  const STORE = "atrium-breath-config";
+  let config = { pattern: "4-6", rounds: 3, silent: false };
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE) || "null");
+    if (saved && PATTERNS[saved.pattern]) config = { ...config, ...saved };
+  } catch {}
+  const save = () => { try { localStorage.setItem(STORE, JSON.stringify(config)); } catch {} };
+
+  function renderSetup() {
+    document.querySelectorAll(".seg").forEach((seg) => {
+      const key = seg.dataset.key;
+      seg.querySelectorAll("button").forEach((b) => {
+        const v = key === "rounds" ? (b.dataset.value === "inf" ? null : Number(b.dataset.value)) : b.dataset.value;
+        b.setAttribute("aria-checked", String(v === config[key]));
+      });
+    });
+    $("silent").setAttribute("aria-checked", String(config.silent));
+  }
+  document.querySelectorAll(".seg").forEach((seg) =>
+    seg.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      const key = seg.dataset.key;
+      config[key] = key === "rounds" ? (b.dataset.value === "inf" ? null : Number(b.dataset.value)) : b.dataset.value;
+      save();
+      renderSetup();
+    }),
+  );
+  $("silent").addEventListener("click", () => { config.silent = !config.silent; save(); renderSetup(); });
+  renderSetup();
+
+  // ---- audio: one baked 70 s round per pattern, looped sample-accurately ----
+  let ctx = null;
+  const raw = {};      // pattern → Promise<ArrayBuffer>, fetched on load
+  const decoded = {};  // pattern → Promise<AudioBuffer>
+  for (const p of Object.keys(AUDIO)) {
+    raw[p] = fetch(AUDIO[p]).then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); });
+    raw[p].catch(() => {});
+  }
+  const audioContext = () => {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      ctx = new AC({ latencyHint: "interactive" });
+    }
+    return ctx;
+  };
+  const bufferFor = (p) =>
+    (decoded[p] ??= raw[p].then((ab) => new Promise((ok, fail) => audioContext().decodeAudioData(ab.slice(0), ok, fail))));
+
+  // ---- the session ----
+  let s = null; // { config, t0, source, gain, raf, timer, lock, beat }
+  const now = () => (s && s.source ? ctx.currentTime : performance.now() / 1000);
+
+  async function start() {
+    if (s) return;
+    const c = { ...config };
+    $("start").disabled = true;
+    let source = null;
+    let gain = null;
+    let t0;
+    try {
+      if (!c.silent) {
+        const ac = audioContext();
+        await ac.resume();
+        const buffer = await bufferFor(c.pattern);
+        gain = ac.createGain();
+        gain.connect(ac.destination);
+        source = ac.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+        source.loopStart = 0;
+        source.loopEnd = buffer.duration;
+        source.connect(gain);
+        t0 = ac.currentTime + LEAD;
+        source.start(t0);
+        // The track loops straight into the next round's first note at 70 s.
+        // In the last round, fade out a few seconds into the rest, once the
+        // last note has rung away, so the session ends in silence.
+        if (c.rounds != null) {
+          const off = t0 + (c.rounds - 1) * PERIOD + BREATH + 3;
+          gain.gain.setValueAtTime(1, off);
+          gain.gain.linearRampToValueAtTime(0, off + 0.05);
+          source.stop(off + 0.1);
+        }
+      }
+    } catch (err) {
+      console.warn("[breath] audio unavailable, breathing in silence", err);
+      source = null;
+      gain = null;
+    } finally {
+      $("start").disabled = false;
+    }
+    if (!source) t0 = performance.now() / 1000 + LEAD;
+
+    s = { config: c, t0, source, gain, beat: -1, raf: 0, timer: 0, lock: null };
+    const { inhale, exhale } = PATTERNS[c.pattern];
+    $("s-pattern").textContent = `${inhale} in · ${exhale} out${c.silent || !source ? " · silent" : ""}`;
+    $("setup").hidden = true;
+    $("session").hidden = false;
+    $("end").focus({ preventScroll: true });
+    try { s.lock = await navigator.wakeLock?.request("screen"); } catch {}
+    frame();
+    // rAF sleeps in a background tab; this keeps the session ending on time.
+    s.timer = setInterval(() => { if (s) update(); }, 500);
+  }
+
+  function stop() {
+    if (!s) return;
+    const { config: c, t0, source, gain, raf, timer, lock } = s;
+    const t = now();
+    s = null;
+    cancelAnimationFrame(raf);
+    clearInterval(timer);
+    lock?.release?.().catch?.(() => {});
+    if (source && gain) {
+      try {
+        gain.gain.cancelScheduledValues(t);
+        gain.gain.setValueAtTime(gain.gain.value, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.25);
+        source.stop(t + 0.3);
+      } catch {}
+    }
+    const seconds = Math.max(0, t - t0);
+    const capped = c.rounds ? Math.min(seconds, c.rounds * PERIOD) : seconds;
+    const rounds = Math.floor(capped / PERIOD + 1e-6);
+    if (capped >= 10) {
+      $("last-text").textContent =
+        (rounds ? `${rounds} round${rounds > 1 ? "s" : ""} · ` : "") + `${label(c.pattern)} · ${clock(capped)}`;
+      $("last").hidden = false;
+    }
+    $("orb").style.transform = "";
+    $("session").hidden = true;
+    $("setup").hidden = false;
+    $("start").focus({ preventScroll: true });
+  }
+
+  const ease = (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2); // ease-in-out
+
+  // Everything shown is a function of time since the first note.
+  function update() {
+    if (!s) return;
+    const { config: c, t0 } = s;
+    const t = Math.max(0, now() - t0);
+    if (c.rounds != null && t >= c.rounds * PERIOD) return stop();
+
+    const { inhale, exhale } = PATTERNS[c.pattern];
+    const cycle = inhale + exhale;
+    const pos = t % PERIOD;
+    const second = Math.floor(t);
+    let scale;
+    let phase;
+    if (pos < BREATH) {
+      const local = pos % cycle;
+      phase = local < inhale ? "in" : "out";
+      scale = local < inhale ? 1 + 0.6 * ease(local / inhale) : 1.6 - 0.6 * ease((local - inhale) / exhale);
+    } else {
+      phase = `rest · ${PERIOD - Math.floor(pos)}`;
+      // The rest begins on a cycle boundary, so the orb is already home.
+      scale = 1;
+    }
+    $("orb").style.transform = `scale(${scale.toFixed(4)})`;
+    $("orb").classList.toggle("resting", pos >= BREATH);
+
+    if (second !== s.beat) {
+      s.beat = second;
+      const round = Math.floor(t / PERIOD) + 1;
+      $("s-round").textContent = c.rounds ? `round ${round} / ${c.rounds}` : `round ${round}`;
+      $("clock").textContent = clock(t);
+      if ($("phase").textContent !== phase) $("phase").textContent = phase;
+      // Silent mode on a phone browser that can vibrate: a double tap each
+      // inhale second, a single soft one each exhale second, still in rest.
+      if (c.silent && navigator.vibrate && pos < BREATH) {
+        const local = Math.floor(pos) % cycle;
+        navigator.vibrate(local < inhale ? [18, 72, 18] : 10);
+      }
+    }
+  }
+  function frame() {
+    if (!s) return;
+    update();
+    if (s) s.raf = requestAnimationFrame(frame);
+  }
+
+  $("start").addEventListener("click", start);
+  $("end").addEventListener("click", stop);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && s) { e.preventDefault(); stop(); }
+    else if (e.key === " " && !s && !e.target.closest?.("button")) { e.preventDefault(); start(); }
+  });
+  // A wake lock is dropped whenever the tab is hidden; take it back on return.
+  document.addEventListener("visibilitychange", async () => {
+    if (s && document.visibilityState === "visible") {
+      try { s.lock = await navigator.wakeLock?.request("screen"); } catch {}
+    }
+  });
+})();
+</script>
+</body>
+</html>
